@@ -1,53 +1,166 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   CheckCircle2,
   AlertTriangle,
-  HelpCircle,
   TrendingUp,
-  Info,
-  Calendar,
-  Sparkles,
   Calculator,
+  Sparkles,
+  RefreshCw,
+  Clock,
 } from 'lucide-react';
 import { attendanceSubjects } from '../data/mockData';
 import { AttendanceSubject } from '../types';
+import { api, AttendanceScreenData } from '../services/api';
 
 export const AttendanceScreen: React.FC = () => {
-  const [subjects, setSubjects] = useState<AttendanceSubject[]>(attendanceSubjects);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [attendanceData, setAttendanceData] = useState<AttendanceScreenData>({
+    overallPercentage: 82,
+    threshold: 75,
+    totalClasses: 200,
+    totalAttended: 164,
+    totalAbsent: 36,
+    subjects: attendanceSubjects,
+    recentLogs: [],
+    isLiveApi: false,
+  });
+
   const [selectedPeriod, setSelectedPeriod] = useState('This Semester');
   const [showSimulator, setShowSimulator] = useState(false);
-  const [simulatedSubject, setSimulatedSubject] = useState<AttendanceSubject>(subjects[2]); // Algorithms
+  const [simulatedSubjectIndex, setSimulatedSubjectIndex] = useState(0);
   const [additionalClasses, setAdditionalClasses] = useState(5);
   const [additionalAttended, setAdditionalAttended] = useState(5);
 
-  const totalClasses = subjects.reduce((acc, s) => acc + s.total, 0);
-  const totalAttended = subjects.reduce((acc, s) => acc + s.attended, 0);
-  const totalAbsent = totalClasses - totalAttended;
-  const overallPercentage = Math.round((totalAttended / totalClasses) * 100);
+  const fetchAttendance = async () => {
+    setLoading(true);
+    setApiError(null);
+    try {
+      const data = await api.getStudentAttendance('1');
+      setAttendanceData(data);
+      if (!data.isLiveApi) {
+        setApiError('Connected in local mode. Flask backend fallback active.');
+      }
+    } catch (err: any) {
+      console.error('[AttendanceScreen] Error fetching attendance:', err);
+      setApiError(err?.message || 'Unable to connect to attendance API');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAttendance();
+  }, []);
+
+  const subjects = attendanceData.subjects;
+  const simulatedSubject = subjects[simulatedSubjectIndex] || subjects[0] || attendanceSubjects[0];
+
+  const totalClasses = attendanceData.totalClasses || subjects.reduce((acc, s) => acc + s.total, 0);
+  const totalAttended = attendanceData.totalAttended || subjects.reduce((acc, s) => acc + s.attended, 0);
+  const totalAbsent = attendanceData.totalAbsent ?? (totalClasses - totalAttended);
+  const overallPercentage = attendanceData.overallPercentage || Math.round((totalAttended / (totalClasses || 1)) * 100);
 
   // Calculate simulated attendance
-  const simulatedNewTotal = simulatedSubject.total + additionalClasses;
-  const simulatedNewAttended = simulatedSubject.attended + additionalAttended;
-  const simulatedPercent = Math.round((simulatedNewAttended / simulatedNewTotal) * 100);
+  const simulatedNewTotal = (simulatedSubject?.total || 0) + additionalClasses;
+  const simulatedNewAttended = (simulatedSubject?.attended || 0) + additionalAttended;
+  const simulatedPercent = Math.round((simulatedNewAttended / (simulatedNewTotal || 1)) * 100);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-8 w-60 bg-slate-200/80 rounded-md animate-pulse" />
+            <div className="h-4 w-40 bg-slate-100 rounded-md animate-pulse" />
+          </div>
+          <div className="h-8 w-48 bg-slate-200/60 rounded-full animate-pulse" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="lg:col-span-5 bg-white rounded-2xl p-7 border border-slate-100 h-84 flex flex-col justify-between shadow-xs animate-pulse">
+            <div className="h-5 w-32 bg-slate-200 rounded" />
+            <div className="w-40 h-40 rounded-full border-8 border-slate-100 mx-auto" />
+            <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-100">
+              <div className="h-10 bg-slate-100 rounded" />
+              <div className="h-10 bg-slate-100 rounded" />
+              <div className="h-10 bg-slate-100 rounded" />
+            </div>
+          </div>
+
+          <div className="lg:col-span-7 bg-white rounded-2xl p-7 border border-slate-100 h-84 flex flex-col justify-between shadow-xs animate-pulse">
+            <div className="h-5 w-40 bg-slate-200 rounded" />
+            <div className="h-40 bg-slate-100 rounded-xl" />
+            <div className="h-4 w-52 bg-slate-100 rounded" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 h-36 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
+      {/* Optional Non-Destructive Error Banner */}
+      {apiError && !attendanceData.isLiveApi && (
+        <div className="flex items-center justify-between p-3.5 px-4 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{apiError}</span>
+          </div>
+          <button
+            onClick={fetchAttendance}
+            className="flex items-center gap-1 font-semibold text-amber-900 hover:text-amber-950 underline shrink-0 cursor-pointer"
+          >
+            <RefreshCw className="w-3 h-3" /> Retry
+          </button>
+        </div>
+      )}
+
       {/* Header Section (Page 4) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Attendance Overview
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+              Attendance Overview
+            </h1>
+            {attendanceData.isLiveApi && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live API
+              </span>
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Fall Semester 2023 <span className="text-slate-300">•</span> Computer Science
+            Fall Semester 2023 <span className="text-slate-300">•</span> School of Computing & Data Sciences
           </p>
         </div>
 
         {/* Status Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200/80 shadow-2xs self-start sm:self-auto">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>Keep it up! You&apos;re above the 75% threshold.</span>
+        <div
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-semibold border shadow-2xs self-start sm:self-auto ${
+            overallPercentage >= 75
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
+              : 'bg-red-50 text-red-800 border-red-200/80'
+          }`}
+        >
+          {overallPercentage >= 75 ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Keep it up! You&apos;re above the {attendanceData.threshold}% threshold.</span>
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>Attendance below mandatory {attendanceData.threshold}% threshold!</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -63,7 +176,7 @@ export const AttendanceScreen: React.FC = () => {
             <h2 className="text-base font-bold text-slate-900">Overall Attendance</h2>
             <button
               onClick={() => setShowSimulator(!showSimulator)}
-              className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1"
+              className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 cursor-pointer"
             >
               <Calculator className="w-3.5 h-3.5" />
               <span>Simulator</span>
@@ -88,7 +201,9 @@ export const AttendanceScreen: React.FC = () => {
                   cx="70"
                   cy="70"
                   r="56"
-                  className="stroke-emerald-600 transition-all duration-1000 ease-out"
+                  className={`transition-all duration-1000 ease-out ${
+                    overallPercentage >= 75 ? 'stroke-emerald-600' : 'stroke-red-500'
+                  }`}
                   strokeWidth="11"
                   strokeDasharray={2 * Math.PI * 56}
                   strokeDashoffset={2 * Math.PI * 56 * (1 - overallPercentage / 100)}
@@ -101,14 +216,18 @@ export const AttendanceScreen: React.FC = () => {
                 <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
                   {overallPercentage}%
                 </span>
-                <span className="text-[11px] font-semibold text-emerald-600 mt-0.5">
-                  Above Min. (75%)
+                <span
+                  className={`text-[11px] font-semibold mt-0.5 ${
+                    overallPercentage >= 75 ? 'text-emerald-600' : 'text-red-500'
+                  }`}
+                >
+                  {overallPercentage >= 75 ? `Above Min. (${attendanceData.threshold}%)` : `Below Min. (${attendanceData.threshold}%)`}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Sub Stats Row: PRESENT 164 | ABSENT 36 | TOTAL 200 */}
+          {/* Sub Stats Row: PRESENT | ABSENT | TOTAL */}
           <div className="grid grid-cols-3 divide-x divide-slate-100 pt-4 border-t border-slate-100 text-center">
             <div>
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block">
@@ -182,8 +301,8 @@ export const AttendanceScreen: React.FC = () => {
                 <line x1="0" y1="130" x2="400" y2="130" stroke="#F1F5F9" strokeWidth="1" />
 
                 {/* 75% Marker Label */}
-                <text x="350" y="47" fill="#EF4444" fontSize="10" fontWeight="bold" opacity="0.8">
-                  75% Required
+                <text x="340" y="47" fill="#EF4444" fontSize="10" fontWeight="bold" opacity="0.8">
+                  {attendanceData.threshold}% Required
                 </text>
 
                 <defs>
@@ -229,7 +348,7 @@ export const AttendanceScreen: React.FC = () => {
             <span className="flex items-center gap-1.5 text-blue-600 font-semibold">
               <TrendingUp className="w-3.5 h-3.5" /> Steady attendance growth over semester
             </span>
-            <span className="text-slate-400">Total sessions: 200</span>
+            <span className="text-slate-400">Total sessions: {totalClasses}</span>
           </div>
         </motion.div>
       </div>
@@ -249,52 +368,67 @@ export const AttendanceScreen: React.FC = () => {
             Test how attending or missing future lectures affects your compliance for any subject.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">Subject</label>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                Select Subject
+              </label>
               <select
-                value={simulatedSubject.id}
-                onChange={(e) => {
-                  const sub = subjects.find((s) => s.id === e.target.value);
-                  if (sub) setSimulatedSubject(sub);
-                }}
-                className="w-full text-xs bg-white border border-slate-200 rounded-xl p-2.5 font-medium"
+                value={simulatedSubjectIndex}
+                onChange={(e) => setSimulatedSubjectIndex(Number(e.target.value))}
+                className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none"
               >
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} (Current: {s.percentage}%)
+                {subjects.map((s, idx) => (
+                  <option key={s.id} value={idx}>
+                    {s.name} ({s.percentage}%)
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">
-                Upcoming Classes to attend: {additionalAttended} / {additionalClasses}
+              <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                Upcoming Classes Held (+{additionalClasses})
               </label>
               <input
-                type="range"
+                type="number"
                 min="1"
-                max="15"
+                max="30"
                 value={additionalClasses}
                 onChange={(e) => {
-                  const val = parseInt(e.target.value);
+                  const val = Math.max(1, parseInt(e.target.value) || 1);
                   setAdditionalClasses(val);
                   if (additionalAttended > val) setAdditionalAttended(val);
                 }}
-                className="w-full mt-2"
+                className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-xl p-2 text-slate-800"
               />
-              <div className="flex justify-between text-[11px] text-slate-500 mt-1">
-                <span>1 class</span>
-                <span>15 classes</span>
-              </div>
             </div>
 
-            <div className="bg-white p-3.5 rounded-xl border border-blue-100 flex items-center justify-between">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                Classes You Will Attend (+{additionalAttended})
+              </label>
+              <input
+                type="number"
+                min="0"
+                max={additionalClasses}
+                value={additionalAttended}
+                onChange={(e) =>
+                  setAdditionalAttended(
+                    Math.min(additionalClasses, Math.max(0, parseInt(e.target.value) || 0))
+                  )
+                }
+                className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-xl p-2 text-slate-800"
+              />
+            </div>
+
+            <div className="bg-white p-3 rounded-xl border border-blue-100 flex items-center justify-between">
               <div>
-                <span className="text-[11px] text-slate-500 block font-medium">Projected Attendance</span>
-                <span className="text-xs text-slate-400">
-                  {simulatedNewAttended}/{simulatedNewTotal} Classes
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                  Projected %
+                </span>
+                <span className="text-xs font-semibold text-slate-600">
+                  {simulatedSubject?.shortName || simulatedSubject?.name}
                 </span>
               </div>
               <div className="text-right">
@@ -318,7 +452,7 @@ export const AttendanceScreen: React.FC = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">Subject Breakdown</h2>
-          <span className="text-xs text-slate-500 font-medium">5 Enrolled Courses</span>
+          <span className="text-xs text-slate-500 font-medium">{subjects.length} Enrolled Courses</span>
         </div>
 
         {/* Grid of Subject Cards */}
@@ -399,6 +533,43 @@ export const AttendanceScreen: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Recent Attendance Logs (when live API) */}
+        {attendanceData.recentLogs && attendanceData.recentLogs.length > 0 && (
+          <div className="mt-8 bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-600" />
+                <h3 className="text-sm font-bold text-slate-900">Recent Attendance Logs</h3>
+              </div>
+              <span className="text-xs text-slate-400">Past 5 sessions</span>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {attendanceData.recentLogs.slice(0, 5).map((log) => (
+                <div key={log.id} className="py-2.5 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-bold text-slate-800">{log.subject_name}</span>
+                    <span className="text-slate-400 ml-2">({log.subject_code})</span>
+                    <p className="text-[11px] text-slate-500">{log.topic}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-400 text-[11px]">{log.date}</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-md font-bold uppercase text-[10px] ${
+                        log.status === 'present'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          : 'bg-red-50 text-red-700 border border-red-100'
+                      }`}
+                    >
+                      {log.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
