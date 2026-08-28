@@ -9,14 +9,30 @@ import {
   CheckCircle2,
   ChevronRight,
   TrendingUp,
+  RefreshCw,
+  Server,
 } from 'lucide-react';
 import { ScreenId } from '../types';
+import { api, DashboardApiData } from '../services/api';
+import { initialUserProfile, attendanceSubjects, todayClasses, upcomingExams, initialAssignments } from '../data/mockData';
 
 interface DashboardScreenProps {
   onNavigate: (screen: ScreenId) => void;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardApiData>({
+    student: initialUserProfile,
+    overallAttendance: 82,
+    subjectBreakdown: attendanceSubjects,
+    todaySchedule: todayClasses,
+    nextExam: upcomingExams[0],
+    pendingAssignments: initialAssignments.filter((a) => a.status === 'pending'),
+    isLiveApi: false,
+  });
+
   // Live ticker for next exam
   const [timeLeft, setTimeLeft] = useState({
     days: 2,
@@ -24,6 +40,27 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     minutes: 12,
     seconds: 45,
   });
+
+  const loadData = async () => {
+    setLoading(true);
+    setApiError(null);
+    try {
+      const data = await api.getDashboardData('1');
+      setDashboardData(data);
+      if (!data.isLiveApi) {
+        setApiError('Connected in local mode. Flask backend fallback active.');
+      }
+    } catch (err: any) {
+      console.error('[DashboardScreen] Failed to load dashboard:', err);
+      setApiError(err?.message || 'Failed to connect to backend server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -38,8 +75,76 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     return () => clearInterval(interval);
   }, []);
 
+  const attendancePct = dashboardData.overallAttendance || 82;
+  const radius = 48;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - attendancePct / 100);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
+        <div className="flex items-center justify-between px-1">
+          <div className="h-6 w-48 bg-slate-200/70 rounded-md animate-pulse" />
+          <div className="h-6 w-24 bg-slate-200/70 rounded-full animate-pulse" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <div className="md:col-span-3 bg-white rounded-2xl p-6 border border-slate-100 h-80 flex flex-col justify-between shadow-xs animate-pulse">
+            <div className="h-4 w-24 bg-slate-200 rounded" />
+            <div className="w-32 h-32 rounded-full border-8 border-slate-100 mx-auto" />
+            <div className="h-4 w-32 bg-slate-100 rounded mx-auto" />
+          </div>
+
+          <div className="md:col-span-5 bg-blue-600/90 rounded-2xl p-6 h-80 flex flex-col justify-between shadow-xs animate-pulse">
+            <div className="space-y-3">
+              <div className="h-3 w-20 bg-blue-400/50 rounded" />
+              <div className="h-6 w-3/4 bg-blue-400/60 rounded" />
+              <div className="h-3 w-1/2 bg-blue-400/40 rounded" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="h-16 bg-white/10 rounded-xl" />
+              <div className="h-16 bg-white/10 rounded-xl" />
+              <div className="h-16 bg-white/10 rounded-xl" />
+            </div>
+          </div>
+
+          <div className="md:col-span-4 bg-white rounded-2xl p-6 border border-slate-100 h-80 flex flex-col justify-between shadow-xs animate-pulse">
+            <div className="h-4 w-28 bg-slate-200 rounded" />
+            <div className="space-y-3">
+              <div className="h-12 bg-slate-100 rounded-xl" />
+              <div className="h-12 bg-slate-100 rounded-xl" />
+              <div className="h-12 bg-slate-100 rounded-xl" />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <div className="md:col-span-4 bg-white rounded-2xl p-6 border border-slate-100 h-64 animate-pulse" />
+          <div className="md:col-span-4 bg-white rounded-2xl p-6 border border-slate-100 h-64 animate-pulse" />
+          <div className="md:col-span-4 bg-white rounded-2xl p-6 border border-slate-100 h-64 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
+      {/* Optional Backend Status / Error Banner */}
+      {apiError && !dashboardData.isLiveApi && (
+        <div className="flex items-center justify-between p-3.5 px-4 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{apiError}</span>
+          </div>
+          <button
+            onClick={loadData}
+            className="flex items-center gap-1 font-semibold text-amber-900 hover:text-amber-950 underline shrink-0 cursor-pointer"
+          >
+            <RefreshCw className="w-3 h-3" /> Retry
+          </button>
+        </div>
+      )}
+
       {/* Top Row: Attendance (Radial), Next Exam (Hero Card), Today's Classes */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
         {/* 1. Attendance Radial Card (Page 3 Left) */}
@@ -49,8 +154,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           onClick={() => onNavigate('attendance')}
           className="md:col-span-3 bg-white rounded-2xl p-6 border border-slate-100/90 shadow-xs flex flex-col justify-between cursor-pointer group hover:border-blue-200 transition-all"
         >
-          <div>
+          <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-slate-900">Attendance</h2>
+            {dashboardData.isLiveApi && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live API
+              </span>
+            )}
           </div>
 
           <div className="my-5 flex flex-col items-center justify-center">
@@ -61,20 +172,20 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                 <circle
                   cx="60"
                   cy="60"
-                  r="48"
+                  r={radius}
                   className="stroke-slate-100"
                   strokeWidth="9"
                   fill="transparent"
                 />
-                {/* Progress Arc 82% */}
+                {/* Progress Arc */}
                 <circle
                   cx="60"
                   cy="60"
-                  r="48"
+                  r={radius}
                   className="stroke-blue-600 transition-all duration-1000 ease-out"
                   strokeWidth="9"
-                  strokeDasharray={2 * Math.PI * 48}
-                  strokeDashoffset={2 * Math.PI * 48 * (1 - 0.82)}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
                   strokeLinecap="round"
                   fill="transparent"
                 />
@@ -82,14 +193,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
               {/* Centered Text */}
               <div className="absolute flex flex-col items-center justify-center text-center">
-                <span className="text-3xl font-extrabold text-blue-600 tracking-tight">82%</span>
+                <span className="text-3xl font-extrabold text-blue-600 tracking-tight">
+                  {attendancePct}%
+                </span>
               </div>
             </div>
 
             {/* On Track Pill */}
             <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-100">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>On Track</span>
+              <span>{attendancePct >= 75 ? 'On Track' : 'Needs Attention'}</span>
             </div>
           </div>
 
@@ -117,10 +230,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               NEXT EXAM
             </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
-              Data Structures &amp; Algorithms
+              {dashboardData.nextExam?.name || 'Data Structures & Algorithms'}
             </h2>
             <p className="text-xs text-blue-100/80 font-medium mt-1">
-              Mid-Term Assessment • Room 402, CS Building
+              Mid-Term Assessment • {dashboardData.nextExam?.room || 'Room 402, CS Building'}
             </p>
           </div>
 
@@ -265,7 +378,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               <div>
                 <h4 className="text-xs font-bold text-red-900">Low Attendance Warning</h4>
                 <p className="text-[11px] text-red-700/90 mt-0.5 leading-snug">
-                  Physics (68%) - Needs attention to meet 75% criteria.
+                  Computer Networks (70%) - Below mandatory 75% criteria.
                 </p>
               </div>
             </div>
@@ -281,7 +394,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               <div>
                 <h4 className="text-xs font-bold text-amber-900">Assignment Due</h4>
                 <p className="text-[11px] text-amber-800/90 mt-0.5 leading-snug">
-                  OS Lab Report is due tomorrow at 11:59 PM.
+                  Graph Algorithms Implementation is due today at 11:59 PM.
                 </p>
               </div>
             </div>
@@ -342,18 +455,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               </div>
             </div>
 
-            {/* Physics */}
+            {/* Networks / Physics */}
             <div
               onClick={() => onNavigate('attendance')}
               className="p-3.5 rounded-xl bg-slate-50 hover:bg-red-50/40 border border-slate-100 transition-colors cursor-pointer"
             >
-              <span className="text-xs font-semibold text-slate-600 block">Physics</span>
+              <span className="text-xs font-semibold text-slate-600 block">Networks</span>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl font-bold text-red-600">68%</span>
+                <span className="text-xl font-bold text-red-600">70%</span>
                 <span className="text-xs text-red-400 font-bold">~</span>
               </div>
               <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div className="bg-red-500 h-1.5 rounded-full" style={{ width: '68%' }} />
+                <div className="bg-red-500 h-1.5 rounded-full" style={{ width: '70%' }} />
               </div>
             </div>
 
@@ -362,19 +475,20 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               onClick={() => onNavigate('attendance')}
               className="p-3.5 rounded-xl bg-slate-50 hover:bg-blue-50/40 border border-slate-100 transition-colors cursor-pointer"
             >
-              <span className="text-xs font-semibold text-slate-600 block">Data..</span>
+              <span className="text-xs font-semibold text-slate-600 block">Data Struct.</span>
               <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl font-bold text-blue-600">85%</span>
+                <span className="text-xl font-bold text-blue-600">88%</span>
                 <span className="text-xs text-blue-400">→</span>
               </div>
               <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: '85%' }} />
+                <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: '88%' }} />
               </div>
             </div>
           </div>
 
-          <div className="pt-2 text-center text-[11px] text-slate-400">
-            Current Academic Sem: 5th
+          <div className="pt-2 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+            <Server className="w-3 h-3 text-slate-400" />
+            <span>Academic Sem: {dashboardData.student.semester}</span>
           </div>
         </div>
 
@@ -441,9 +555,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
           <div className="pt-2 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
             <span className="flex items-center gap-1 text-emerald-600 font-bold">
-              <TrendingUp className="w-3.5 h-3.5" /> +8.4% this month
+              <TrendingUp className="w-3.5 h-3.5" /> {dashboardData.student.gpaChange || '+8.4% this month'}
             </span>
-            <span className="text-slate-400 font-mono">GPA 3.8</span>
+            <span className="text-slate-600 font-mono font-bold">GPA {dashboardData.student.gpa}</span>
           </div>
         </div>
       </div>
