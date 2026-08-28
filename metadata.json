@@ -1,0 +1,6 @@
+{
+  "name": "CampusPulse",
+  "description": "Smart Academic Assistant portal for students with attendance tracking, exam countdowns, timetable, coursework, notifications, profile management, and AI academic assistance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
