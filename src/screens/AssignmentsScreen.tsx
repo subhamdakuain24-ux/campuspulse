@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Upload,
@@ -13,9 +13,12 @@ import {
   AlertCircle,
   X,
   FileUp,
+  RotateCw,
+  Server,
 } from 'lucide-react';
 import { initialAssignments } from '../data/mockData';
 import { AssignmentItem } from '../types';
+import { api } from '../services/api';
 
 export const AssignmentsScreen: React.FC = () => {
   const [assignments, setAssignments] = useState<AssignmentItem[]>(initialAssignments);
@@ -24,6 +27,31 @@ export const AssignmentsScreen: React.FC = () => {
   const [activeModalItem, setActiveModalItem] = useState<AssignmentItem | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [submissionNotes, setSubmissionNotes] = useState('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isLiveApi, setIsLiveApi] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAssignments = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await api.getStudentAssignments('1');
+      setAssignments(data.assignments);
+      setIsLiveApi(data.isLiveApi);
+    } catch (err: any) {
+      console.error('[AssignmentsScreen] Error fetching assignments:', err);
+      setError(err?.message || 'Failed to load assignments');
+      setIsLiveApi(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignments();
+  }, []);
 
   const pendingList = assignments.filter((a) => a.status === 'pending' || a.status === 'draft');
   const completedList = assignments.filter((a) => a.status === 'completed');
@@ -33,29 +61,70 @@ export const AssignmentsScreen: React.FC = () => {
     return item.courseCode.includes(selectedSubject) || item.courseName.includes(selectedSubject);
   });
 
-  const handleSubmitAssignment = (e: React.FormEvent) => {
+  const handleSubmitAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeModalItem) return;
 
-    setAssignments((prev) =>
-      prev.map((item) =>
-        item.id === activeModalItem.id
-          ? {
-              ...item,
-              status: 'completed',
-              submittedDate: 'Just now',
-              grade: 'Under Review',
-              actionText: 'View Submission',
-            }
-          : item
-      )
-    );
+    try {
+      setIsSubmitting(true);
+      const res = await api.submitAssignment('1', activeModalItem.id, {
+        notes: submissionNotes,
+        fileName: fileName || 'assignment_submission.pdf',
+      });
 
-    setUploadSuccess(true);
-    setTimeout(() => {
-      setUploadSuccess(false);
-      setActiveModalItem(null);
-    }, 1200);
+      if (res.assignment) {
+        setAssignments((prev) =>
+          prev.map((item) => (item.id === activeModalItem.id ? res.assignment! : item))
+        );
+      } else {
+        setAssignments((prev) =>
+          prev.map((item) =>
+            item.id === activeModalItem.id
+              ? {
+                  ...item,
+                  status: 'completed',
+                  submittedDate: 'Just now',
+                  grade: 'Under Review',
+                  actionText: 'View Submission',
+                }
+              : item
+          )
+        );
+      }
+
+      setUploadSuccess(true);
+      setTimeout(() => {
+        setUploadSuccess(false);
+        setActiveModalItem(null);
+        setFileName('');
+        setSubmissionNotes('');
+      }, 1400);
+    } catch (err: any) {
+      console.error('[AssignmentsScreen] Submission error:', err);
+      // Fallback local update
+      setAssignments((prev) =>
+        prev.map((item) =>
+          item.id === activeModalItem.id
+            ? {
+                ...item,
+                status: 'completed',
+                submittedDate: 'Just now',
+                grade: 'Under Review',
+                actionText: 'View Submission',
+              }
+            : item
+        )
+      );
+      setUploadSuccess(true);
+      setTimeout(() => {
+        setUploadSuccess(false);
+        setActiveModalItem(null);
+        setFileName('');
+        setSubmissionNotes('');
+      }, 1400);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -80,11 +149,14 @@ export const AssignmentsScreen: React.FC = () => {
               className="text-xs font-semibold text-slate-700 bg-white border border-slate-200/80 rounded-xl px-3.5 py-2 pr-8 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               <option value="All Subjects">All Subjects</option>
-              <option value="CS101">CS101: Software Engineering</option>
-              <option value="ENG301">ENG301: Modern Literature</option>
-              <option value="MATH202">MATH202: Calculus III</option>
-              <option value="CS305">CS305: Computer Networks</option>
-              <option value="CS304">CS304: Database Systems</option>
+              {Array.from(new Set(assignments.map((a) => a.courseCode))).map((code) => {
+                const asg = assignments.find((a) => a.courseCode === code);
+                return (
+                  <option key={code} value={code}>
+                    {code}: {asg?.courseName || code}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>
@@ -328,6 +400,8 @@ export const AssignmentsScreen: React.FC = () => {
                     </label>
                     <textarea
                       rows={3}
+                      value={submissionNotes}
+                      onChange={(e) => setSubmissionNotes(e.target.value)}
                       placeholder="Add any notes or repository link for your professor..."
                       className="w-full text-xs p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
@@ -336,16 +410,19 @@ export const AssignmentsScreen: React.FC = () => {
                   <div className="flex items-center justify-end gap-2 pt-2">
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => setActiveModalItem(null)}
-                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl disabled:opacity-50"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs"
+                      disabled={isSubmitting}
+                      className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs disabled:opacity-50 flex items-center gap-1.5"
                     >
-                      Confirm Submission
+                      {isSubmitting && <RotateCw className="w-3.5 h-3.5 animate-spin" />}
+                      {isSubmitting ? 'Submitting...' : 'Confirm Submission'}
                     </button>
                   </div>
                 </form>

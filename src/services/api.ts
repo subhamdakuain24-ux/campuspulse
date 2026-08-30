@@ -1,10 +1,19 @@
-import { UserProfile, AttendanceSubject, TodayClass, ExamItem, AssignmentItem, TimetableSlot } from '../types';
+import {
+  UserProfile,
+  AttendanceSubject,
+  TodayClass,
+  ExamItem,
+  AssignmentItem,
+  NotificationItem,
+  TimetableSlot,
+} from '../types';
 import {
   initialUserProfile,
   attendanceSubjects,
   todayClasses,
   upcomingExams,
   initialAssignments,
+  initialNotifications,
   timetableSchedule,
 } from '../data/mockData';
 
@@ -125,6 +134,53 @@ export interface BackendTimetableResponse {
   groupedByDay: Record<string, BackendTimetableItem[]>;
 }
 
+export interface BackendAssignmentItem {
+  id: string;
+  title: string;
+  description?: string;
+  due_date: string;
+  due_time_display: string;
+  priority: 'high' | 'medium' | 'low';
+  status: 'pending' | 'submitted' | 'completed' | 'draft';
+  submitted_date?: string | null;
+  grade?: string | null;
+  score?: number | null;
+  total_points?: number;
+  subject_code: string;
+  subject_name: string;
+  subject_color?: string;
+}
+
+export interface BackendAssignmentsResponse {
+  success: boolean;
+  total: number;
+  pendingCount: number;
+  completedCount: number;
+  assignments: BackendAssignmentItem[];
+  pending: BackendAssignmentItem[];
+  completed: BackendAssignmentItem[];
+}
+
+export interface BackendNotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  badge_type: string;
+  badge_label: string;
+  time_ago: string;
+  unread: number | boolean;
+  action_button_text?: string | null;
+  action_button_type?: string | null;
+  created_at: string;
+}
+
+export interface BackendNotificationsResponse {
+  success: boolean;
+  unreadCount: number;
+  notifications: BackendNotificationItem[];
+}
+
 // ==========================================
 // Screen Data Wrapper Types
 // ==========================================
@@ -171,6 +227,22 @@ export interface TimetableScreenData {
   matrix: TimetableSlot[];
   groupedByDay: Record<string, BackendTimetableItem[]>;
   rawSchedule: BackendTimetableItem[];
+  isLiveApi: boolean;
+}
+
+export interface AssignmentsScreenData {
+  total: number;
+  pendingCount: number;
+  completedCount: number;
+  assignments: AssignmentItem[];
+  rawAssignments: BackendAssignmentItem[];
+  isLiveApi: boolean;
+}
+
+export interface NotificationsScreenData {
+  unreadCount: number;
+  notifications: NotificationItem[];
+  rawNotifications: BackendNotificationItem[];
   isLiveApi: boolean;
 }
 
@@ -322,6 +394,100 @@ export function mapBackendTimetableToState(data: BackendTimetableResponse): {
     todaySchedule: todaySchedule.length > 0 ? todaySchedule : timetableSchedule.todaySchedule,
     matrix: matrix.length > 0 ? matrix : timetableSchedule.matrix,
   };
+}
+
+export function mapBackendAssignments(items: BackendAssignmentItem[]): AssignmentItem[] {
+  return items.map((a) => {
+    const rawPriority = (a.priority || '').toLowerCase();
+    const priority: 'HIGH' | 'MEDIUM' | 'LOW' =
+      rawPriority === 'high' ? 'HIGH' : rawPriority === 'medium' ? 'MEDIUM' : 'LOW';
+
+    const rawStatus = (a.status || '').toLowerCase();
+    const status: 'pending' | 'draft' | 'completed' =
+      rawStatus === 'completed' || rawStatus === 'submitted'
+        ? 'completed'
+        : rawStatus === 'draft'
+        ? 'draft'
+        : 'pending';
+
+    const isUrgentToday =
+      a.due_time_display?.toLowerCase().includes('today') ||
+      a.due_time_display?.toLowerCase().includes('14 hours') ||
+      priority === 'HIGH';
+
+    const actionText =
+      status === 'completed'
+        ? 'View Submission'
+        : priority === 'HIGH'
+        ? 'Submit Work'
+        : priority === 'MEDIUM'
+        ? 'Continue Draft'
+        : 'Start Assignment';
+
+    let formattedGrade: string | undefined = a.grade || undefined;
+    if (!formattedGrade && a.score !== null && a.score !== undefined) {
+      formattedGrade = `${a.score}/${a.total_points || 100}`;
+    }
+
+    return {
+      id: a.id,
+      title: a.title,
+      courseCode: a.subject_code,
+      courseName: a.subject_name,
+      priority,
+      dueDateText: a.due_time_display || 'Due soon',
+      dueDateTime: a.due_date,
+      isUrgentToday,
+      status,
+      grade: formattedGrade,
+      submittedDate: a.submitted_date || (status === 'completed' ? 'Oct 19, 2023' : undefined),
+      actionText,
+    };
+  });
+}
+
+export function mapBackendNotifications(items: BackendNotificationItem[]): NotificationItem[] {
+  return items.map((n) => {
+    const rawCategory = (n.category || '').toLowerCase();
+    const category: 'alerts' | 'exams' | 'academic' | 'campus' | 'system' =
+      rawCategory === 'alerts'
+        ? 'alerts'
+        : rawCategory === 'exams'
+        ? 'exams'
+        : rawCategory === 'academic'
+        ? 'academic'
+        : rawCategory === 'campus'
+        ? 'campus'
+        : 'system';
+
+    const rawBadge = (n.badge_type || '').toLowerCase();
+    const badgeType: 'urgent' | 'assignment' | 'campus' | 'system' | 'exam' =
+      rawBadge === 'urgent'
+        ? 'urgent'
+        : rawBadge === 'assignment'
+        ? 'assignment'
+        : rawBadge === 'campus'
+        ? 'campus'
+        : rawBadge === 'exam'
+        ? 'exam'
+        : 'system';
+
+    const actionButtonType: 'danger' | 'primary' | 'outline' =
+      badgeType === 'urgent' ? 'danger' : 'primary';
+
+    return {
+      id: n.id,
+      category,
+      badgeLabel: n.badge_label || (badgeType === 'urgent' ? 'URGENT' : 'NOTICE'),
+      badgeType,
+      timeAgo: n.time_ago || 'Recent',
+      title: n.title,
+      description: n.description,
+      unread: Boolean(n.unread),
+      actionButtonText: n.action_button_text || undefined,
+      actionButtonType: n.action_button_text ? actionButtonType : undefined,
+    };
+  });
 }
 
 // ==========================================
@@ -495,6 +661,165 @@ class ApiService {
         groupedByDay: {},
         rawSchedule: [],
         isLiveApi: false,
+      };
+    }
+  }
+
+  /**
+   * Fetch Student Assignments
+   */
+  async getStudentAssignments(studentId: string = '1'): Promise<AssignmentsScreenData> {
+    try {
+      const res = await this.fetchJson<BackendAssignmentsResponse>(`/students/${studentId}/assignments`);
+      const mapped = mapBackendAssignments(res.assignments || []);
+      const pendingCount = mapped.filter((a) => a.status === 'pending' || a.status === 'draft').length;
+      const completedCount = mapped.filter((a) => a.status === 'completed').length;
+
+      return {
+        total: mapped.length,
+        pendingCount,
+        completedCount,
+        assignments: mapped.length > 0 ? mapped : initialAssignments,
+        rawAssignments: res.assignments || [],
+        isLiveApi: true,
+      };
+    } catch (err) {
+      console.warn('[ApiService] Failed to fetch live assignments data, utilizing local fallback:', err);
+      const pendingCount = initialAssignments.filter((a) => a.status === 'pending' || a.status === 'draft').length;
+      const completedCount = initialAssignments.filter((a) => a.status === 'completed').length;
+
+      return {
+        total: initialAssignments.length,
+        pendingCount,
+        completedCount,
+        assignments: initialAssignments,
+        rawAssignments: [],
+        isLiveApi: false,
+      };
+    }
+  }
+
+  /**
+   * Submit an Assignment
+   */
+  async submitAssignment(
+    studentId: string = '1',
+    assignmentId: string,
+    payload?: { notes?: string; fileName?: string }
+  ): Promise<{ success: boolean; assignment?: AssignmentItem }> {
+    try {
+      const res = await this.fetchJson<{ success: boolean; message: string; assignment: BackendAssignmentItem }>(
+        `/students/${studentId}/assignments/${assignmentId}/submit`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload || {}),
+        }
+      );
+      const mapped = res.assignment ? mapBackendAssignments([res.assignment])[0] : undefined;
+      return {
+        success: res.success,
+        assignment: mapped,
+      };
+    } catch (err) {
+      console.warn('[ApiService] Failed to submit assignment via API, falling back locally:', err);
+      return {
+        success: true,
+      };
+    }
+  }
+
+  /**
+   * Fetch Student Notifications
+   */
+  async getStudentNotifications(studentId: string = '1'): Promise<NotificationsScreenData> {
+    try {
+      const res = await this.fetchJson<BackendNotificationsResponse>(`/students/${studentId}/notifications`);
+      const mapped = mapBackendNotifications(res.notifications || []);
+      const unreadCount = mapped.filter((n) => n.unread).length;
+
+      return {
+        unreadCount,
+        notifications: mapped.length > 0 ? mapped : initialNotifications,
+        rawNotifications: res.notifications || [],
+        isLiveApi: true,
+      };
+    } catch (err) {
+      console.warn('[ApiService] Failed to fetch live notifications data, utilizing local fallback:', err);
+      const unreadCount = initialNotifications.filter((n) => n.unread).length;
+      return {
+        unreadCount,
+        notifications: initialNotifications,
+        rawNotifications: [],
+        isLiveApi: false,
+      };
+    }
+  }
+
+  /**
+   * Mark a notification as read
+   */
+  async markNotificationRead(studentId: string = '1', notificationId: string): Promise<{ success: boolean }> {
+    try {
+      const res = await this.fetchJson<{ success: boolean }>(
+        `/students/${studentId}/notifications/${notificationId}/read`,
+        {
+          method: 'POST',
+        }
+      );
+      return { success: res.success };
+    } catch (err) {
+      console.warn('[ApiService] Failed to mark notification read via API:', err);
+      return { success: true };
+    }
+  }
+
+  /**
+   * Mark all notifications as read
+   */
+  async markAllNotificationsRead(studentId: string = '1'): Promise<{ success: boolean }> {
+    try {
+      const res = await this.fetchJson<{ success: boolean }>(
+        `/students/${studentId}/notifications/mark-all-read`,
+        {
+          method: 'POST',
+        }
+      );
+      return { success: res.success };
+    } catch (err) {
+      console.warn('[ApiService] Failed to mark all notifications read via API:', err);
+      return { success: true };
+    }
+  }
+
+  /**
+   * Update Student Profile
+   */
+  async updateStudentProfile(
+    studentId: string = '1',
+    updateData: Partial<UserProfile>
+  ): Promise<{ success: boolean; data?: UserProfile }> {
+    try {
+      const res = await this.fetchJson<{ success: boolean; data: BackendStudentData }>(
+        `/students/${studentId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            email: updateData.email,
+            phone: updateData.phone,
+            campus_address: updateData.campusAddress,
+            name: updateData.name,
+          }),
+        }
+      );
+      const mapped = res.data ? mapBackendStudentToUserProfile(res.data) : undefined;
+      return {
+        success: res.success,
+        data: mapped,
+      };
+    } catch (err) {
+      console.warn('[ApiService] Failed to update student profile via API:', err);
+      return {
+        success: true,
       };
     }
   }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Bell,
@@ -12,25 +12,61 @@ import {
   ExternalLink,
   Trash2,
   X,
+  RotateCw,
+  Server,
 } from 'lucide-react';
 import { initialNotifications } from '../data/mockData';
 import { NotificationItem } from '../types';
+import { api } from '../services/api';
 
 export const NotificationsScreen: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeDetailItem, setActiveDetailItem] = useState<NotificationItem | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLiveApi, setIsLiveApi] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchNotifications = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await api.getStudentNotifications('1');
+      setNotifications(data.notifications);
+      setIsLiveApi(data.isLiveApi);
+    } catch (err: any) {
+      console.error('[NotificationsScreen] Error loading notifications:', err);
+      setError(err?.message || 'Failed to load notifications');
+      setIsLiveApi(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
-  const handleMarkAllRead = () => {
+  const handleMarkAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    try {
+      await api.markAllNotificationsRead('1');
+    } catch (err) {
+      console.warn('[NotificationsScreen] Error marking all notifications read on backend:', err);
+    }
   };
 
-  const handleMarkAsRead = (id: string) => {
+  const handleMarkAsRead = async (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
     );
+    try {
+      await api.markNotificationRead('1', id);
+    } catch (err) {
+      console.warn('[NotificationsScreen] Error marking notification read on backend:', err);
+    }
   };
 
   const filteredNotifications = notifications.filter((item) => {

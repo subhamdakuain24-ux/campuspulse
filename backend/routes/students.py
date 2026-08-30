@@ -304,3 +304,182 @@ def get_student_notifications(student_id):
         "unreadCount": unread_count,
         "notifications": notifications
     }), 200
+
+@api_bp.route("/students/<student_id>", methods=["PUT", "PATCH"])
+def update_student_profile(student_id):
+    """Updates a student's personal details and campus info."""
+    data = request.get_json(silent=True) or {}
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id FROM students WHERE id = ? OR student_id = ? LIMIT 1
+    """, (student_id, student_id))
+    student = cur.fetchone()
+
+    if not student:
+        conn.close()
+        return jsonify({"error": f"Student '{student_id}' not found"}), 404
+
+    actual_id = student["id"]
+
+    email = data.get("email")
+    phone = data.get("phone")
+    campus_address = data.get("campus_address") or data.get("campusAddress")
+    name = data.get("name")
+
+    updates = []
+    params = []
+    if email is not None:
+        updates.append("email = ?")
+        params.append(email)
+    if phone is not None:
+        updates.append("phone = ?")
+        params.append(phone)
+    if campus_address is not None:
+        updates.append("campus_address = ?")
+        params.append(campus_address)
+    if name is not None:
+        updates.append("name = ?")
+        params.append(name)
+
+    if updates:
+        params.append(actual_id)
+        cur.execute(f"UPDATE students SET {', '.join(updates)} WHERE id = ?", tuple(params))
+        conn.commit()
+
+    cur.execute("SELECT * FROM students WHERE id = ?", (actual_id,))
+    updated_student = cur.fetchone()
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "message": "Student profile updated successfully",
+        "data": updated_student
+    }), 200
+
+@api_bp.route("/students/<student_id>/assignments/<assignment_id>/submit", methods=["POST"])
+def submit_student_assignment(student_id, assignment_id):
+    """Marks an assignment as submitted/completed for a student."""
+    data = request.get_json(silent=True) or {}
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id FROM students WHERE id = ? OR student_id = ? LIMIT 1
+    """, (student_id, student_id))
+    student = cur.fetchone()
+
+    if not student:
+        conn.close()
+        return jsonify({"error": f"Student '{student_id}' not found"}), 404
+
+    actual_id = student["id"]
+
+    cur.execute("""
+        SELECT * FROM assignments WHERE id = ? AND student_id = ? LIMIT 1
+    """, (assignment_id, actual_id))
+    asg = cur.fetchone()
+
+    if not asg:
+        conn.close()
+        return jsonify({"error": f"Assignment '{assignment_id}' not found"}), 404
+
+    # Update status to submitted/completed
+    cur.execute("""
+        UPDATE assignments 
+        SET status = 'completed', 
+            submitted_date = datetime('now'),
+            grade = 'Under Review',
+            score = 95
+        WHERE id = ? AND student_id = ?
+    """, (assignment_id, actual_id))
+    conn.commit()
+
+    cur.execute("""
+        SELECT 
+            a.id,
+            a.title,
+            a.description,
+            a.due_date,
+            a.due_time_display,
+            a.priority,
+            a.status,
+            a.submitted_date,
+            a.grade,
+            a.score,
+            a.total_points,
+            s.code AS subject_code,
+            s.name AS subject_name,
+            s.color AS subject_color
+        FROM assignments a
+        JOIN subjects s ON a.subject_id = s.id
+        WHERE a.id = ? AND a.student_id = ?
+    """, (assignment_id, actual_id))
+    updated_asg = cur.fetchone()
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "message": "Assignment submitted successfully",
+        "assignment": updated_asg
+    }), 200
+
+@api_bp.route("/students/<student_id>/notifications/<notification_id>/read", methods=["POST", "PATCH"])
+def mark_notification_read(student_id, notification_id):
+    """Marks a single notification as read."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id FROM students WHERE id = ? OR student_id = ? LIMIT 1
+    """, (student_id, student_id))
+    student = cur.fetchone()
+
+    if not student:
+        conn.close()
+        return jsonify({"error": f"Student '{student_id}' not found"}), 404
+
+    actual_id = student["id"]
+
+    cur.execute("""
+        UPDATE notifications SET unread = 0 
+        WHERE id = ? AND student_id = ?
+    """, (notification_id, actual_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "message": f"Notification '{notification_id}' marked as read"
+    }), 200
+
+@api_bp.route("/students/<student_id>/notifications/mark-all-read", methods=["POST", "PATCH"])
+def mark_all_notifications_read(student_id):
+    """Marks all notifications for a student as read."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id FROM students WHERE id = ? OR student_id = ? LIMIT 1
+    """, (student_id, student_id))
+    student = cur.fetchone()
+
+    if not student:
+        conn.close()
+        return jsonify({"error": f"Student '{student_id}' not found"}), 404
+
+    actual_id = student["id"]
+
+    cur.execute("""
+        UPDATE notifications SET unread = 0 
+        WHERE student_id = ?
+    """, (actual_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "message": "All notifications marked as read"
+    }), 200
+

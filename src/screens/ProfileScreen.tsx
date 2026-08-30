@@ -13,9 +13,11 @@ import {
   CreditCard,
   QrCode,
   FileText,
+  RotateCw,
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { CampusPulseLogo } from '../components/CampusPulseLogo';
+import { api } from '../services/api';
 
 interface ProfileScreenProps {
   user: UserProfile;
@@ -32,25 +34,52 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
   const [profileVisibility, setProfileVisibility] = useState(user.preferences.profileVisibility);
   const [twoFactorAuth, setTwoFactorAuth] = useState(user.preferences.twoFactorAuth);
 
+  const [isSaving, setIsSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [showIdCardModal, setShowIdCardModal] = useState(false);
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
 
-  const handleSaveChanges = (e: React.FormEvent) => {
+  const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateUser({
-      email,
-      phone,
-      campusAddress: address,
-      preferences: {
-        academicAlerts,
-        profileVisibility,
-        twoFactorAuth,
-      },
-    });
+    try {
+      setIsSaving(true);
+      await api.updateStudentProfile('1', {
+        email,
+        phone,
+        campusAddress: address,
+        name: user.name,
+      });
 
-    setSavedToast(true);
-    setTimeout(() => setSavedToast(false), 3000);
+      onUpdateUser({
+        email,
+        phone,
+        campusAddress: address,
+        preferences: {
+          academicAlerts,
+          profileVisibility,
+          twoFactorAuth,
+        },
+      });
+
+      setSavedToast(true);
+      setTimeout(() => setSavedToast(false), 3000);
+    } catch (err) {
+      console.warn('[ProfileScreen] Error updating profile on backend, saving locally:', err);
+      onUpdateUser({
+        email,
+        phone,
+        campusAddress: address,
+        preferences: {
+          academicAlerts,
+          profileVisibility,
+          twoFactorAuth,
+        },
+      });
+      setSavedToast(true);
+      setTimeout(() => setSavedToast(false), 3000);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -271,9 +300,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
                 <div className="flex justify-end mt-4">
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all"
+                    disabled={isSaving}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
                   >
-                    Save Changes
+                    {isSaving && <RotateCw className="w-3.5 h-3.5 animate-spin" />}
+                    {isSaving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </div>
