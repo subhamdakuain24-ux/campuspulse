@@ -1,5 +1,7 @@
 import {
   UserProfile,
+  UserRole,
+  AuthUser,
   AttendanceSubject,
   TodayClass,
   ExamItem,
@@ -490,42 +492,324 @@ export function mapBackendNotifications(items: BackendNotificationItem[]): Notif
   });
 }
 
+export function mapBackendUserToUserProfile(user: AuthUser, student?: BackendStudentData): UserProfile {
+  const rawRole = (user.role || '').toLowerCase();
+  const normalizedRole: UserRole =
+    rawRole === 'teacher'
+      ? 'Teacher'
+      : rawRole === 'admin'
+      ? 'Admin'
+      : 'Student';
+
+  if (normalizedRole === 'Student' && student) {
+    return mapBackendStudentToUserProfile(student);
+  }
+
+  return {
+    name: user.name || (normalizedRole === 'Teacher' ? 'Prof. Sarah Jenkins' : 'Dr. Marcus Carter'),
+    studentId: user.identifier || (normalizedRole === 'Teacher' ? 'FAC-4019' : 'ADM-9901'),
+    program: normalizedRole === 'Teacher' ? (user.department || 'Department of Computer Science') : (user.department || 'Campus Operations & IT Administration'),
+    semester: normalizedRole === 'Teacher' ? 'Faculty Lead' : 'Administration',
+    term: 'Fall 2023',
+    date: initialUserProfile.date,
+    email: user.email || (normalizedRole === 'Teacher' ? 'sarah.jenkins@university.edu' : 'admin.carter@university.edu'),
+    phone: user.phone || (normalizedRole === 'Teacher' ? '+1 (555) 392-8819' : '+1 (555) 901-4422'),
+    campusAddress: user.department || 'Academic Faculty Complex',
+    gpa: normalizedRole === 'Student' ? 3.84 : 4.0,
+    gpaChange: 'Active Term',
+    creditsEarned: normalizedRole === 'Teacher' ? 120 : 0,
+    creditsTotal: 160,
+    enrolledYear: 2020,
+    graduationYear: 2024,
+    avatarUrl: user.avatar_url || (normalizedRole === 'Teacher'
+      ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+      : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'),
+    role: normalizedRole,
+    preferences: initialUserProfile.preferences,
+  };
+}
+
+export interface AuthLoginResponse {
+  success: boolean;
+  message: string;
+  token: string;
+  expires_at: string;
+  user: AuthUser;
+  student?: BackendStudentData;
+}
+
+export interface AuthMeResponse {
+  success: boolean;
+  authenticated: boolean;
+  user: AuthUser;
+  student?: BackendStudentData;
+}
+
+const AUTH_TOKEN_KEY = 'campuspulse_auth_token';
+const AUTH_USER_KEY = 'campuspulse_auth_user';
+const AUTH_STUDENT_KEY = 'campuspulse_auth_student';
+
 // ==========================================
 // ApiService Class
 // ==========================================
 
 class ApiService {
   private baseUrl: string = API_BASE_URL;
+  private token: string | null = null;
+
+  constructor() {
+    try {
+      this.token = localStorage.getItem(AUTH_TOKEN_KEY);
+    } catch {
+      this.token = null;
+    }
+  }
 
   public getBaseUrl(): string {
     return this.baseUrl;
   }
 
+  public getToken(): string | null {
+    if (!this.token) {
+      try {
+        this.token = localStorage.getItem(AUTH_TOKEN_KEY);
+      } catch {
+        this.token = null;
+      }
+    }
+    return this.token;
+  }
+
+  public setToken(token: string | null): void {
+    this.token = token;
+    try {
+      if (token) {
+        localStorage.setItem(AUTH_TOKEN_KEY, token);
+      } else {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+      }
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  public getStoredStudent(): BackendStudentData | null {
+    try {
+      const data = localStorage.getItem(AUTH_STUDENT_KEY);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public setStoredStudent(student: BackendStudentData | null): void {
+    try {
+      if (student) {
+        localStorage.setItem(AUTH_STUDENT_KEY, JSON.stringify(student));
+      } else {
+        localStorage.removeItem(AUTH_STUDENT_KEY);
+      }
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  public isAuthenticated(): boolean {
+    return Boolean(this.getToken());
+  }
+
   private async fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    });
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(options?.headers as Record<string, string> || {}),
+    };
+
+    const token = this.getToken();
+    if (token && !headers['Authorization']) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch (networkErr: any) {
+      throw new Error('Backend service unavailable. Please ensure server is running.');
+    }
 
     if (!response.ok) {
       let errorMessage = `HTTP Error ${response.status}: ${response.statusText}`;
       try {
         const errorData = await response.json();
-        if (errorData?.error) errorMessage = errorData.error;
-        else if (errorData?.message) errorMessage = errorData.message;
+        if (response.status === 401) {
+          // Specific friendly message for authentication
+          errorMessage = errorData?.error || 'Invalid ID/email or password';
+        } else if (errorData?.error) {
+          errorMessage = errorData.error;
+        } else if (errorData?.message) {
+          errorMessage = errorData.message;
+        }
       } catch {
-        // fallback
+        if (response.status === 401) {
+          errorMessage = 'Invalid ID/email or password';
+        }
       }
       throw new Error(errorMessage);
     }
 
     return (await response.json()) as T;
+  }
+
+  public getStoredUser(): AuthUser | null {
+    try {
+      const data = localStorage.getItem(AUTH_USER_KEY);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public setStoredUser(user: AuthUser | null): void {
+    try {
+      if (user) {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+      } else {
+        localStorage.removeItem(AUTH_USER_KEY);
+      }
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  /**
+   * Universal Login for Student, Teacher, and Admin
+   */
+  async login(
+    identifier: string,
+    password: string,
+    remember: boolean = true
+  ): Promise<{
+    success: boolean;
+    token: string;
+    expires_at: string;
+    user: AuthUser;
+    role: UserRole;
+    student?: BackendStudentData;
+    profile: UserProfile;
+  }> {
+    if (!identifier.trim() || !password.trim()) {
+      throw new Error('Please enter both ID/email and password.');
+    }
+
+    try {
+      const res = await this.fetchJson<AuthLoginResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          password: password.trim(),
+        }),
+      });
+
+      if (!res || !res.token) {
+        throw new Error('Unexpected response received from authentication server.');
+      }
+
+      if (remember) {
+        this.setToken(res.token);
+        this.setStoredUser(res.user);
+        if (res.student) {
+          this.setStoredStudent(res.student);
+        } else {
+          this.setStoredStudent(null);
+        }
+      } else {
+        this.token = res.token;
+      }
+
+      const profile = mapBackendUserToUserProfile(res.user, res.student);
+      const role = profile.role;
+
+      return {
+        success: true,
+        token: res.token,
+        expires_at: res.expires_at,
+        user: res.user,
+        role,
+        student: res.student,
+        profile,
+      };
+    } catch (err: any) {
+      if (err.message && err.message.toLowerCase().includes('failed to fetch')) {
+        throw new Error('Backend service unavailable. Please check your connection.');
+      }
+      // Re-throw formatted error
+      throw err;
+    }
+  }
+
+  /**
+   * Retrieve Current Authenticated User via /api/auth/me
+   */
+  async getAuthMe(): Promise<{
+    authenticated: boolean;
+    user: AuthUser;
+    role: UserRole;
+    student?: BackendStudentData;
+    profile: UserProfile;
+  } | null> {
+    const token = this.getToken();
+    if (!token) return null;
+
+    try {
+      const res = await this.fetchJson<AuthMeResponse>('/auth/me');
+      if (res && res.authenticated && res.user) {
+        this.setStoredUser(res.user);
+        if (res.student) {
+          this.setStoredStudent(res.student);
+        }
+        const profile = mapBackendUserToUserProfile(res.user, res.student);
+        return {
+          authenticated: true,
+          user: res.user,
+          role: profile.role,
+          student: res.student,
+          profile,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.warn('[ApiService] Session verification failed or expired:', err);
+      this.setToken(null);
+      this.setStoredUser(null);
+      this.setStoredStudent(null);
+      return null;
+    }
+  }
+
+  /**
+   * Universal Logout via /api/auth/logout
+   */
+  async logout(): Promise<{ success: boolean; message: string }> {
+    try {
+      const token = this.getToken();
+      if (token) {
+        await this.fetchJson<{ success: boolean; message: string }>('/auth/logout', {
+          method: 'POST',
+        });
+      }
+    } catch (err) {
+      console.warn('[ApiService] Logout API call encountered error:', err);
+    } finally {
+      this.setToken(null);
+      this.setStoredUser(null);
+      this.setStoredStudent(null);
+    }
+    return { success: true, message: 'Logged out successfully' };
   }
 
   /**

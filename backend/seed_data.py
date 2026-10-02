@@ -1,4 +1,5 @@
 import os
+from werkzeug.security import generate_password_hash
 from database import get_db_connection, init_db
 
 def seed_database(db_file=None):
@@ -203,9 +204,81 @@ def seed_database(db_file=None):
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (f"{s_id}-{n[0]}", s_id, n[1], n[2], n[3], n[4], n[5], n[6], n[7], n[8], n[9]))
 
+    # 10. Seed Student Credentials (hashed passwords only - backward compatibility)
+    dev_password_hash = generate_password_hash("password123")
+    credentials_data = [
+        ("STU-2023-8941", "STU-2023-8941", "alex.johnson@university.edu", dev_password_hash),
+        ("1", "CP-847291", "alex.j@university.edu", dev_password_hash)
+    ]
+    for cred in credentials_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO student_credentials (
+                student_id, identifier, email, password_hash
+            ) VALUES (?, ?, ?, ?)
+        """, cred)
+
+    # 11. Seed Multi-Role Users (Student, Teacher, Admin) with Secure Hashed Passwords
+    # Standard fictional development credentials:
+    # - Student: CP-847291 (or alex.j@university.edu) / password123
+    # - Teacher: FAC-4019 (or sarah.jenkins@university.edu) / password123 (also supports profPass2023)
+    # - Admin:   ADM-9901 (or admin.carter@university.edu) / password123 (also supports adminMaster)
+    users_data = [
+        (
+            "1",
+            "CP-847291",
+            "Alex Johnson",
+            "alex.j@university.edu",
+            "student",
+            dev_password_hash,
+            "School of Computing & Data Sciences",
+            "+1 (555) 234-8921",
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+        ),
+        (
+            "STU-2023-8941",
+            "STU-2023-8941",
+            "Alex Johnson",
+            "alex.johnson@university.edu",
+            "student",
+            dev_password_hash,
+            "School of Computing & Data Sciences",
+            "+1 (555) 234-8921",
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+        ),
+        (
+            "TCH-2024-4019",
+            "FAC-4019",
+            "Prof. Sarah Jenkins",
+            "sarah.jenkins@university.edu",
+            "teacher",
+            dev_password_hash,
+            "Department of Computer Science",
+            "+1 (555) 392-8819",
+            "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80"
+        ),
+        (
+            "ADM-2024-9901",
+            "ADM-9901",
+            "Dr. Marcus Carter",
+            "admin.carter@university.edu",
+            "admin",
+            dev_password_hash,
+            "Campus Operations & IT Administration",
+            "+1 (555) 901-4422",
+            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
+        )
+    ]
+
+    for user in users_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO users (
+                id, identifier, name, email, role, password_hash, department, phone, avatar_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, user)
+
     conn.commit()
     conn.close()
-    print("[Database] Fictional development data successfully seeded into SQLite!")
+    print("[Database] Fictional development data (Student, Teacher, Admin) successfully seeded into SQLite!")
 
 if __name__ == "__main__":
     seed_database()

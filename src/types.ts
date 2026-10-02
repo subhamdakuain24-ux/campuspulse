@@ -11,6 +11,18 @@ export type ScreenId =
 
 export type UserRole = 'Student' | 'Teacher' | 'Admin';
 
+export interface AuthUser {
+  id: string;
+  identifier: string;
+  name: string;
+  email: string;
+  role: 'student' | 'teacher' | 'admin' | UserRole;
+  department?: string;
+  avatar_url?: string;
+  phone?: string;
+  created_at?: string;
+}
+
 export interface UserProfile {
   name: string;
   studentId: string;

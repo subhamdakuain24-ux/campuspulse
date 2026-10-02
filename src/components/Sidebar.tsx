@@ -11,7 +11,7 @@ import {
   Settings,
   LogOut,
 } from 'lucide-react';
-import { ScreenId } from '../types';
+import { ScreenId, UserProfile } from '../types';
 import { CampusPulseLogo } from './CampusPulseLogo';
 
 interface SidebarProps {
@@ -20,6 +20,7 @@ interface SidebarProps {
   onLogout: () => void;
   unreadCount?: number;
   onOpenSettings?: () => void;
+  user?: UserProfile;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -28,6 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   unreadCount = 3,
   onOpenSettings,
+  user,
 }) => {
   const navItems = [
     {
@@ -148,14 +150,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onNavigate('profile')}
             className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 border border-slate-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
-              AJ
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 border border-slate-700 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                (user?.name || 'CP').split(' ').map((n) => n[0]).join('').slice(0, 2)
+              )}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-white truncate group-hover:text-blue-300 transition-colors">
-                Alex Johnson
+                {user?.name || 'Alex Johnson'}
               </p>
-              <p className="text-[10px] text-slate-400 truncate">CS • 5th Semester</p>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                  user?.role === 'Admin'
+                    ? 'bg-purple-500/25 text-purple-300 border border-purple-500/30'
+                    : user?.role === 'Teacher'
+                    ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-blue-500/25 text-blue-300 border border-blue-500/30'
+                }`}>
+                  {user?.role || 'Student'}
+                </span>
+                <span className="text-[10px] text-slate-400 truncate">
+                  {user?.role === 'Teacher' ? 'Faculty' : user?.role === 'Admin' ? 'Admin' : '5th Sem'}
+                </span>
+              </div>
             </div>
           </div>
 

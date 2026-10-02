@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ScreenId, UserProfile, UserRole } from './types';
 import { initialUserProfile } from './data/mockData';
+import { api } from './services/api';
 import { LoginScreen } from './screens/LoginScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { AttendanceScreen } from './screens/AttendanceScreen';
@@ -21,15 +22,40 @@ export default function App() {
   const [user, setUser] = useState<UserProfile>(initialUserProfile);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleLoginSuccess = (role: UserRole) => {
-    setUser((prev) => ({
-      ...prev,
-      role,
-    }));
+  // Initialize session verification on mount
+  useEffect(() => {
+    const checkActiveSession = async () => {
+      try {
+        const authData = await api.getAuthMe();
+        if (authData && authData.authenticated && authData.profile) {
+          setUser(authData.profile);
+        }
+      } catch (err) {
+        console.warn('[App] Session check error:', err);
+      }
+    };
+    checkActiveSession();
+  }, []);
+
+  const handleLoginSuccess = (role: UserRole, profile?: UserProfile) => {
+    if (profile) {
+      setUser(profile);
+    } else {
+      setUser((prev) => ({
+        ...prev,
+        role,
+      }));
+    }
     setCurrentScreen('dashboard');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch (err) {
+      console.warn('[App] Error during logout:', err);
+    }
+    setUser(initialUserProfile);
     setCurrentScreen('login');
     setMobileMenuOpen(false);
   };
@@ -59,6 +85,7 @@ export default function App() {
           onLogout={handleLogout}
           unreadCount={3}
           onOpenSettings={() => handleNavigate('profile')}
+          user={user}
         />
       </div>
 
@@ -102,6 +129,7 @@ export default function App() {
                   onLogout={handleLogout}
                   unreadCount={3}
                   onOpenSettings={() => handleNavigate('profile')}
+                  user={user}
                 />
               </div>
             </motion.div>

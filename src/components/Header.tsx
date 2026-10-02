@@ -109,13 +109,22 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             id="header-btn-profile"
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 p-0.5 rounded-full hover:ring-2 hover:ring-blue-500/30 transition-all focus:outline-none"
+            className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-100 hover:ring-2 hover:ring-blue-500/30 transition-all focus:outline-none cursor-pointer"
           >
             <img
               src={user.avatarUrl}
               alt={user.name}
               className="w-8 h-8 rounded-full object-cover border border-slate-200"
             />
+            <span className={`hidden sm:inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+              user.role === 'Admin'
+                ? 'bg-purple-100 text-purple-700 border-purple-200'
+                : user.role === 'Teacher'
+                ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                : 'bg-blue-100 text-blue-700 border-blue-200'
+            }`}>
+              {user.role}
+            </span>
           </button>
 
           {/* Menu Popover */}
@@ -127,11 +136,22 @@ export const Header: React.FC<HeaderProps> = ({
               />
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="px-4 py-2.5 border-b border-slate-100">
-                  <p className="text-sm font-bold text-slate-900">{user.name}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-900 truncate">{user.name}</p>
+                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded border ${
+                      user.role === 'Admin'
+                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                        : user.role === 'Teacher'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}>
+                      {user.role}
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-500">{user.studentId}</p>
                   <div className="mt-1 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span className="text-[11px] text-emerald-600 font-medium">Active Session</span>
+                    <span className="text-[11px] text-emerald-600 font-medium">Active Session ({user.role})</span>
                   </div>
                 </div>
 

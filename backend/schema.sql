@@ -143,3 +143,38 @@ CREATE TABLE IF NOT EXISTS notifications (
     action_button_type TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 10. Student Authentication Credentials
+CREATE TABLE IF NOT EXISTS student_credentials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT UNIQUE NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    identifier TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 11. Unified Users Table (Students, Teachers, Admins)
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    identifier TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('student', 'teacher', 'admin')),
+    password_hash TEXT NOT NULL,
+    department TEXT,
+    phone TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Auth Tokens / Sessions (Universal across Roles)
+CREATE TABLE IF NOT EXISTS auth_tokens (
+    token TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'student',
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
