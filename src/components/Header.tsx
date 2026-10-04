@@ -29,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
     exams: 'Examination Center',
     timetable: 'Weekly Timetable',
     assignments: 'Coursework & Assignments',
+    operations: 'Campus Operations',
     notifications: 'Notifications & Alerts',
     profile: 'Student Profile',
     'ai-chat': 'AI Academic Assistant',

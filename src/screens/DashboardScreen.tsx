@@ -11,6 +11,10 @@ import {
   TrendingUp,
   RefreshCw,
   Server,
+  Building2,
+  Wrench,
+  FileCheck2,
+  DoorOpen,
 } from 'lucide-react';
 import { ScreenId } from '../types';
 import { api, DashboardApiData } from '../services/api';
@@ -558,6 +562,40 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               <TrendingUp className="w-3.5 h-3.5" /> {dashboardData.student.gpaChange || '+8.4% this month'}
             </span>
             <span className="text-slate-600 font-mono font-bold">GPA {dashboardData.student.gpa}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Campus Operations & Services Quick Hub */}
+      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-5 sm:p-6 text-white border border-slate-800 shadow-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-400/30">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-white">
+                  Campus Operations & Services
+                </h3>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-400/30">
+                  Live
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Hostel complaints, bonafide certificates, weekend gate passes, and department workload tracking.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onNavigate('operations')}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              Open Operations Desk
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>

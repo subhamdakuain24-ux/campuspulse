@@ -10,6 +10,7 @@ import {
   Sparkles,
   Settings,
   LogOut,
+  Building2,
 } from 'lucide-react';
 import { ScreenId, UserProfile } from '../types';
 import { CampusPulseLogo } from './CampusPulseLogo';
@@ -56,6 +57,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'assignments' as ScreenId,
       label: 'Assignments',
       icon: FileText,
+    },
+    {
+      id: 'operations' as ScreenId,
+      label: user?.role === 'Admin' ? 'Campus Operations' : 'Campus Requests',
+      icon: Building2,
     },
     {
       id: 'notifications' as ScreenId,

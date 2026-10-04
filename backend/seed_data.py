@@ -276,9 +276,200 @@ def seed_database(db_file=None):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, user)
 
+    # 12. Seed Campus Operations Requests (Workflows: Complaints, Bonafide Certificate, Gate Pass & Leave)
+    requests_data = [
+        (
+            1,
+            "CP-10001",
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "School of Computing & Data Sciences",
+            "HOSTEL_COMPLAINT",
+            "Leaking faucet and water pressure drop in 4th floor washroom",
+            "Main sink faucet is dripping continuously and cold water pressure is very low since yesterday morning.",
+            "PLUMBING",
+            "Oak Ridge Residence Hall, 4th Floor West Wing",
+            "HIGH",
+            "IN_PROGRESS",
+            "Hostel Maintenance & Plumbing",
+            "Rajesh Kumar (Facility Tech)",
+            '{"contact_phone": "+1 (555) 234-8921", "preferred_time": "After 2 PM", "urgency_reason": "Continuous water wastage"}',
+            "2026-10-02 09:15:00",
+            "2026-10-02 14:30:00",
+            None
+        ),
+        (
+            2,
+            "CP-10002",
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "School of Computing & Data Sciences",
+            "FACILITY_COMPLAINT",
+            "Wi-Fi access point offline in Lab 304",
+            "Students cannot connect to EduRoam in Lab 304. Access point LED is blinking amber.",
+            "WIFI_NETWORK",
+            "Turing Science Block, Room 304",
+            "URGENT",
+            "RESOLVED",
+            "Campus IT & Network Ops",
+            "Elena Rostova (Senior Network Admin)",
+            '{"affected_students": "~40", "lab_schedule": "Daily 9 AM - 5 PM"}',
+            "2026-10-01 11:00:00",
+            "2026-10-01 16:45:00",
+            "2026-10-01 16:45:00"
+        ),
+        (
+            3,
+            "CP-10003",
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "School of Computing & Data Sciences",
+            "CERTIFICATE_REQUEST",
+            "Bonafide Certificate for State Bank Education Loan",
+            "Need official bonafide student status letter mentioning enrolled semester, academic year, and tuition fee structure for bank loan renewal.",
+            "BONAFIDE",
+            "Academic Registrar Office",
+            "MEDIUM",
+            "PROCESSING",
+            "Academic Affairs & Registrar",
+            "Sarah Williams (Registrar Officer)",
+            '{"certificate_type": "BONAFIDE", "purpose": "State Bank Education Loan renewal", "required_date": "2026-10-15", "copies": 2}',
+            "2026-10-02 10:20:00",
+            "2026-10-02 15:10:00",
+            None
+        ),
+        (
+            4,
+            "CP-10004",
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "School of Computing & Data Sciences",
+            "GATE_PASS",
+            "Weekend Gate Pass for Family Visit",
+            "Traveling home for family anniversary over the weekend. Will return Sunday evening before curfew.",
+            "GATE_PASS",
+            "North Campus Main Gate",
+            "MEDIUM",
+            "APPROVED",
+            "Hostel Wardens Office",
+            "Chief Warden Davis",
+            '{"request_sub_type": "GATE_PASS", "reason": "Family anniversary visit", "destination": "Springfield (Parents Residence)", "start_date": "2026-10-06 17:00", "return_date": "2026-10-08 20:30", "emergency_contact": "+1 (555) 987-6543"}',
+            "2026-10-02 16:00:00",
+            "2026-10-03 08:30:00",
+            None
+        ),
+        (
+            5,
+            "CP-10005",
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "School of Computing & Data Sciences",
+            "LEAVE_REQUEST",
+            "Academic Leave for National Robotics Hackathon",
+            "Representing university team 'RoboPulse' at the National Inter-Collegiate Robotics Championship.",
+            "LEAVE_REQUEST",
+            "Department of Computing",
+            "HIGH",
+            "UNDER_REVIEW",
+            "Dean of Student Affairs",
+            "Prof. Sarah Jenkins",
+            '{"request_sub_type": "LEAVE", "reason": "National Robotics Championship participation", "destination": "Metropolitan Convention Center", "start_date": "2026-10-12 08:00", "return_date": "2026-10-15 18:00", "emergency_contact": "+1 (555) 392-8819"}',
+            "2026-10-03 11:15:00",
+            "2026-10-03 11:30:00",
+            None
+        )
+    ]
+
+    for req in requests_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO campus_requests (
+                id, public_id, student_id, student_name, student_identifier, department,
+                request_type, title, description, category, location, priority,
+                status, assigned_department, assigned_staff, meta_data, created_at, updated_at, resolved_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, req)
+
+    # 13. Seed Request Activity / Audit Logs
+    activities_data = [
+        (
+            1, 1, "CP-10001", "1", "Alex Johnson", "student", "REQUEST_CREATED",
+            None, "SUBMITTED", "Complaint submitted by student via CampusPulse mobile portal.",
+            "2026-10-02 09:15:00"
+        ),
+        (
+            2, 1, "CP-10001", "ADM-2024-9901", "Dr. Marcus Carter", "admin", "ASSIGNED_DEPARTMENT",
+            "SUBMITTED", "ASSIGNED", "Assigned complaint to Hostel Maintenance & Plumbing.",
+            "2026-10-02 11:00:00"
+        ),
+        (
+            3, 1, "CP-10001", "ADM-2024-9901", "Dr. Marcus Carter", "admin", "STATUS_CHANGED",
+            "ASSIGNED", "IN_PROGRESS", "Assigned technician Rajesh Kumar. Work scheduled for afternoon inspection.",
+            "2026-10-02 14:30:00"
+        ),
+        (
+            4, 2, "CP-10002", "1", "Alex Johnson", "student", "REQUEST_CREATED",
+            None, "SUBMITTED", "Facility complaint submitted for Lab 304 Wi-Fi failure.",
+            "2026-10-01 11:00:00"
+        ),
+        (
+            5, 2, "CP-10002", "ADM-2024-9901", "Dr. Marcus Carter", "admin", "ASSIGNED_STAFF",
+            "SUBMITTED", "IN_PROGRESS", "Network admin Elena Rostova dispatched with spectrum analyzer.",
+            "2026-10-01 12:30:00"
+        ),
+        (
+            6, 2, "CP-10002", "ADM-2024-9901", "Dr. Marcus Carter", "admin", "RESOLVED",
+            "IN_PROGRESS", "RESOLVED", "AP firmware rebooted and PoE switch port reconfigured. 5GHz band fully restored.",
+            "2026-10-01 16:45:00"
+        ),
+        (
+            7, 3, "CP-10003", "1", "Alex Johnson", "student", "REQUEST_CREATED",
+            None, "SUBMITTED", "Bonafide Certificate request submitted for State Bank Education Loan.",
+            "2026-10-02 10:20:00"
+        ),
+        (
+            8, 3, "CP-10003", "ADM-2024-9901", "Dr. Marcus Carter", "admin", "STATUS_CHANGED",
+            "SUBMITTED", "PROCESSING", "Academic records verified against registrar registry. Preparing official seal.",
+            "2026-10-02 15:10:00"
+        ),
+        (
+            9, 4, "CP-10004", "1", "Alex Johnson", "student", "REQUEST_CREATED",
+            None, "SUBMITTED", "Weekend gate pass request submitted.",
+            "2026-10-02 16:00:00"
+        ),
+        (
+            10, 4, "CP-10004", "ADM-2024-9901", "Chief Warden Davis", "admin", "APPROVED",
+            "SUBMITTED", "APPROVED", "Approved for weekend travel. Digital pass barcode activated.",
+            "2026-10-03 08:30:00"
+        ),
+        (
+            11, 5, "CP-10005", "1", "Alex Johnson", "student", "REQUEST_CREATED",
+            None, "SUBMITTED", "Academic leave request submitted for robotics hackathon.",
+            "2026-10-03 11:15:00"
+        ),
+        (
+            12, 5, "CP-10005", "TCH-2024-4019", "Prof. Sarah Jenkins", "teacher", "STATUS_CHANGED",
+            "SUBMITTED", "UNDER_REVIEW", "Mentor review in progress. Coordinating with Dean of Student Affairs.",
+            "2026-10-03 11:30:00"
+        )
+    ]
+
+    for act in activities_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO campus_request_activities (
+                id, request_id, public_id, actor_id, actor_name, actor_role,
+                action, old_status, new_status, notes, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, act)
+
     conn.commit()
     conn.close()
-    print("[Database] Fictional development data (Student, Teacher, Admin) successfully seeded into SQLite!")
+    print("[Database] Fictional development data (Student, Teacher, Admin, Campus Requests) successfully seeded into SQLite!")
+
 
 if __name__ == "__main__":
     seed_database()

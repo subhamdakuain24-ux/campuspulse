@@ -8,6 +8,11 @@ import {
   AssignmentItem,
   NotificationItem,
   TimetableSlot,
+  CampusRequest,
+  CampusRequestActivity,
+  CampusOperationsStats,
+  CreateRequestPayload,
+  UpdateRequestPayload,
 } from '../types';
 import {
   initialUserProfile,
@@ -1105,6 +1110,151 @@ class ApiService {
       return {
         success: true,
       };
+    }
+  }
+
+  // ==========================================
+  // Campus Operations & Requests (Phase 4.1)
+  // ==========================================
+
+  /**
+   * Fetch Campus Requests with optional filtering
+   */
+  async getCampusRequests(filters?: {
+    type?: string;
+    status?: string;
+    category?: string;
+    priority?: string;
+    search?: string;
+    student_id?: string;
+  }): Promise<CampusRequest[]> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (filters?.type) queryParams.set('type', filters.type);
+      if (filters?.status) queryParams.set('status', filters.status);
+      if (filters?.category) queryParams.set('category', filters.category);
+      if (filters?.priority) queryParams.set('priority', filters.priority);
+      if (filters?.search) queryParams.set('search', filters.search);
+      if (filters?.student_id) queryParams.set('student_id', filters.student_id);
+
+      const qs = queryParams.toString() ? `?${queryParams.toString()}` : '';
+      const res = await this.fetchJson<{ success: boolean; count: number; requests: CampusRequest[] }>(
+        `/operations/requests${qs}`
+      );
+      return res.requests || [];
+    } catch (err) {
+      console.warn('[ApiService] Failed to fetch campus requests:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Get single campus request detail with timeline
+   */
+  async getCampusRequestDetail(ident: string | number): Promise<CampusRequest | null> {
+    try {
+      const res = await this.fetchJson<{ success: boolean; request: CampusRequest }>(
+        `/operations/requests/${ident}`
+      );
+      return res.request || null;
+    } catch (err) {
+      console.warn(`[ApiService] Failed to fetch request detail for ${ident}:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Create a new campus request (Hostel/Facility Complaint, Certificate, Gate Pass, Leave)
+   */
+  async createCampusRequest(
+    payload: CreateRequestPayload
+  ): Promise<{ success: boolean; public_id?: string; request?: CampusRequest; error?: string }> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        message: string;
+        public_id: string;
+        request: CampusRequest;
+      }>('/operations/requests', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      return {
+        success: res.success,
+        public_id: res.public_id,
+        request: res.request,
+      };
+    } catch (err: any) {
+      console.warn('[ApiService] Failed to create campus request:', err);
+      return {
+        success: false,
+        error: err?.message || 'Failed to submit campus request',
+      };
+    }
+  }
+
+  /**
+   * Update campus request (Admin status transition, staff assignment, notes)
+   */
+  async updateCampusRequest(
+    ident: string | number,
+    payload: UpdateRequestPayload
+  ): Promise<{ success: boolean; request?: CampusRequest; error?: string }> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        message: string;
+        request: CampusRequest;
+      }>(`/operations/requests/${ident}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      return {
+        success: res.success,
+        request: res.request,
+      };
+    } catch (err: any) {
+      console.warn(`[ApiService] Failed to update request ${ident}:`, err);
+      return {
+        success: false,
+        error: err?.message || 'Failed to update campus request',
+      };
+    }
+  }
+
+  /**
+   * Get Campus Operations KPI metrics & stats
+   */
+  async getCampusOperationsStats(): Promise<CampusOperationsStats | null> {
+    try {
+      const res = await this.fetchJson<{ success: boolean; stats: CampusOperationsStats }>(
+        '/operations/stats'
+      );
+      return res.stats || null;
+    } catch (err) {
+      console.warn('[ApiService] Failed to fetch operations stats:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch audit activity logs across campus requests
+   */
+  async getCampusAuditLogs(limit: number = 50, publicId?: string): Promise<CampusRequestActivity[]> {
+    try {
+      const query = new URLSearchParams();
+      if (limit) query.set('limit', limit.toString());
+      if (publicId) query.set('public_id', publicId);
+      const qs = query.toString() ? `?${query.toString()}` : '';
+      const res = await this.fetchJson<{
+        success: boolean;
+        count: number;
+        activities: CampusRequestActivity[];
+      }>(`/operations/audit-logs${qs}`);
+      return res.activities || [];
+    } catch (err) {
+      console.warn('[ApiService] Failed to fetch audit logs:', err);
+      return [];
     }
   }
 }

@@ -12,6 +12,7 @@ import { AssignmentsScreen } from './screens/AssignmentsScreen';
 import { NotificationsScreen } from './screens/NotificationsScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { AIAssistantScreen } from './screens/AIAssistantScreen';
+import { OperationsScreen } from './screens/OperationsScreen';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -164,6 +165,12 @@ export default function App() {
               {currentScreen === 'exams' && <ExamsScreen />}
               {currentScreen === 'timetable' && <TimetableScreen />}
               {currentScreen === 'assignments' && <AssignmentsScreen />}
+              {currentScreen === 'operations' && (
+                <OperationsScreen
+                  user={user}
+                  onNavigateToNotifications={() => handleNavigate('notifications')}
+                />
+              )}
               {currentScreen === 'notifications' && <NotificationsScreen />}
               {currentScreen === 'profile' && (
                 <ProfileScreen user={user} onUpdateUser={handleUpdateUser} />

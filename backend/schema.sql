@@ -178,3 +178,42 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
     expires_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 13. Campus Requests Table (Unified Operations Core)
+CREATE TABLE IF NOT EXISTS campus_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    public_id TEXT UNIQUE NOT NULL, -- e.g. CP-10001
+    student_id TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    student_identifier TEXT NOT NULL,
+    department TEXT,
+    request_type TEXT NOT NULL CHECK(request_type IN ('HOSTEL_COMPLAINT', 'FACILITY_COMPLAINT', 'CERTIFICATE_REQUEST', 'GATE_PASS', 'LEAVE_REQUEST')),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL,
+    location TEXT,
+    priority TEXT NOT NULL DEFAULT 'MEDIUM' CHECK(priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT')),
+    status TEXT NOT NULL DEFAULT 'SUBMITTED',
+    assigned_department TEXT,
+    assigned_staff TEXT,
+    meta_data TEXT, -- JSON string
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP
+);
+
+-- 14. Campus Request Activities / Audit Log
+CREATE TABLE IF NOT EXISTS campus_request_activities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL REFERENCES campus_requests(id) ON DELETE CASCADE,
+    public_id TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    actor_name TEXT NOT NULL,
+    actor_role TEXT NOT NULL,
+    action TEXT NOT NULL,
+    old_status TEXT,
+    new_status TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+

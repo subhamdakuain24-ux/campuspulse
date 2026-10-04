@@ -7,6 +7,7 @@ import {
   FileText,
   Bell,
   Sparkles,
+  Building2,
 } from 'lucide-react';
 import { ScreenId } from '../types';
 
@@ -24,9 +25,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const items = [
     { id: 'dashboard' as ScreenId, label: 'Home', icon: LayoutDashboard },
     { id: 'attendance' as ScreenId, label: 'Attend', icon: UserCheck },
+    { id: 'operations' as ScreenId, label: 'Ops', icon: Building2 },
     { id: 'timetable' as ScreenId, label: 'Schedule', icon: CalendarDays },
     { id: 'assignments' as ScreenId, label: 'Tasks', icon: FileText },
-    { id: 'exams' as ScreenId, label: 'Exams', icon: GraduationCap },
     { id: 'notifications' as ScreenId, label: 'Alerts', icon: Bell, badge: unreadCount },
     { id: 'ai-chat' as ScreenId, label: 'AI Bot', icon: Sparkles, highlight: true },
   ];

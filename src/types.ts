@@ -6,6 +6,7 @@ export type ScreenId =
   | 'timetable'
   | 'assignments'
   | 'notifications'
+  | 'operations'
   | 'profile'
   | 'ai-chat';
 
@@ -137,3 +138,92 @@ export interface ChatMessage {
   suggestions?: string[];
   type?: 'text' | 'schedule' | 'attendance-calc' | 'exam-tips';
 }
+
+export type CampusRequestType =
+  | 'HOSTEL_COMPLAINT'
+  | 'FACILITY_COMPLAINT'
+  | 'CERTIFICATE_REQUEST'
+  | 'GATE_PASS'
+  | 'LEAVE_REQUEST';
+
+export type CampusPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export interface CampusRequestActivity {
+  id: number;
+  request_id: number;
+  public_id: string;
+  actor_id: string;
+  actor_name: string;
+  actor_role: string;
+  action: string;
+  old_status?: string;
+  new_status?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface CampusRequest {
+  id: number;
+  public_id: string;
+  student_id: string;
+  student_name: string;
+  student_identifier: string;
+  department?: string;
+  request_type: CampusRequestType;
+  title: string;
+  description: string;
+  category: string;
+  location?: string;
+  priority: CampusPriority;
+  status: string;
+  assigned_department?: string;
+  assigned_staff?: string;
+  meta_data?: string;
+  meta?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string;
+  age: {
+    hours: number;
+    days: number;
+    formatted: string;
+    is_aged: boolean;
+  };
+  resolution_time?: {
+    hours: number;
+    days: number;
+    formatted: string;
+  } | null;
+  activities?: CampusRequestActivity[];
+}
+
+export interface CampusOperationsStats {
+  total: number;
+  pending: number;
+  in_progress: number;
+  resolved: number;
+  aged_complaints: number;
+  avg_resolution_hours: number;
+  by_type: Record<string, number>;
+  by_status: Record<string, number>;
+  department_workload: Record<string, number>;
+}
+
+export interface CreateRequestPayload {
+  request_type: CampusRequestType;
+  title: string;
+  description: string;
+  category: string;
+  location?: string;
+  priority?: CampusPriority;
+  meta?: Record<string, any>;
+}
+
+export interface UpdateRequestPayload {
+  status?: string;
+  assigned_department?: string;
+  assigned_staff?: string;
+  priority?: CampusPriority;
+  note?: string;
+}
+

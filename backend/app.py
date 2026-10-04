@@ -48,9 +48,11 @@ def create_app(test_config=None):
 
     @app.errorhandler(500)
     def internal_error(error):
+        import traceback
+        traceback.print_exc()
         return jsonify({
             "success": False,
-            "error": "Internal server error. Please verify backend logs."
+            "error": str(error)
         }), 500
 
     @app.errorhandler(404)
