@@ -29,6 +29,10 @@ import {
   X,
   MessageSquare,
   Sparkles,
+  ArrowUpDown,
+  CheckCheck,
+  Shield,
+  Layers,
 } from 'lucide-react';
 import {
   CampusRequest,
@@ -71,14 +75,45 @@ const COMPLAINT_CATEGORIES = [
 
 export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
   const isAdmin = user.role === 'Admin';
+  const isTeacher = user.role === 'Teacher';
+  const isStaffOrAdmin = isAdmin || isTeacher;
+
   const [activeTab, setActiveTab] = useState<'all' | 'complaints' | 'certificates' | 'passes' | 'stats'>('all');
   const [requests, setRequests] = useState<CampusRequest[]>([]);
   const [stats, setStats] = useState<CampusOperationsStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  // Filters and Sorting
   const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [deptFilter, setDeptFilter] = useState('ALL');
+  const [staffFilter, setStaffFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'ageing'>('newest');
+
+  // Dynamically computed list of staff members from current requests and defaults
+  const staffList = useMemo(() => {
+    const set = new Set<string>();
+    requests.forEach((r) => {
+      if (r.assigned_staff && r.assigned_staff.trim()) {
+        set.add(r.assigned_staff.trim());
+      }
+    });
+    ['Tech. Ramesh Kumar', 'Officer Marcus Vance', 'Elena Rostova (Registrar)', 'Warden Michael Chang'].forEach((s) => set.add(s));
+    return Array.from(set).sort();
+  }, [requests]);
+
+  // Success Banner State
+  const [submissionSuccess, setSubmissionSuccess] = useState<{
+    id: string;
+    type: string;
+    status: string;
+    date: string;
+    title: string;
+  } | null>(null);
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -117,15 +152,17 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
   const loadData = async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
     setIsRefreshing(true);
+    setApiError(null);
     try {
       const [reqList, statsData] = await Promise.all([
-        api.getCampusRequests(),
+        api.getCampusRequests({ sort: sortBy }),
         api.getCampusOperationsStats(),
       ]);
       setRequests(reqList);
       setStats(statsData);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('[OperationsScreen] Error loading data:', err);
+      setApiError(err?.message || 'Failed to load operational requests from server.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -134,9 +171,9 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
 
   useEffect(() => {
     loadData(true);
-  }, []);
+  }, [sortBy]);
 
-  // Filter requests based on active tab & search
+  // Filter requests based on active tab, filters, and search
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
       // Tab filter
@@ -148,11 +185,40 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
         if (r.request_type !== 'GATE_PASS' && r.request_type !== 'LEAVE_REQUEST') return false;
       }
 
+      // Type Filter
+      if (typeFilter !== 'ALL') {
+        if (r.request_type !== typeFilter) return false;
+      }
+
       // Status filter
-      if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
+      if (statusFilter !== 'ALL') {
+        if (statusFilter === 'PENDING') {
+          if (r.status !== 'PENDING' && r.status !== 'SUBMITTED') return false;
+        } else if (r.status !== statusFilter) {
+          return false;
+        }
+      }
 
       // Priority filter
       if (priorityFilter !== 'ALL' && r.priority !== priorityFilter) return false;
+
+      // Department filter
+      if (deptFilter !== 'ALL') {
+        if (deptFilter === 'Unassigned') {
+          if (r.assigned_department && r.assigned_department !== 'Unassigned') return false;
+        } else if (r.assigned_department !== deptFilter) {
+          return false;
+        }
+      }
+
+      // Assigned Staff filter
+      if (staffFilter !== 'ALL') {
+        if (staffFilter === 'Unassigned') {
+          if (r.assigned_staff && r.assigned_staff.trim() && r.assigned_staff !== 'Unassigned') return false;
+        } else if (r.assigned_staff !== staffFilter) {
+          return false;
+        }
+      }
 
       // Search query
       if (searchQuery.trim()) {
@@ -162,12 +228,13 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
         const matchId = r.public_id.toLowerCase().includes(q);
         const matchLoc = (r.location || '').toLowerCase().includes(q);
         const matchStudent = (r.student_name || '').toLowerCase().includes(q);
-        if (!matchTitle && !matchDesc && !matchId && !matchLoc && !matchStudent) return false;
+        const matchStaff = (r.assigned_staff || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchDesc && !matchId && !matchLoc && !matchStudent && !matchStaff) return false;
       }
 
       return true;
     });
-  }, [requests, activeTab, statusFilter, priorityFilter, searchQuery]);
+  }, [requests, activeTab, typeFilter, statusFilter, priorityFilter, deptFilter, staffFilter, searchQuery]);
 
   // Open detail modal with full activities
   const handleOpenDetail = async (req: CampusRequest) => {
@@ -188,31 +255,35 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
         setAdminStatus(detail.status);
         setAdminDept(detail.assigned_department || '');
         setAdminStaff(detail.assigned_staff || '');
+        setAdminPriority(detail.priority);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Failed to load fresh detail:', e);
     }
   };
 
   // Handle Admin Quick Update
-  const handleAdminUpdate = async () => {
+  const handleAdminUpdate = async (overrideStatus?: string, overrideNote?: string) => {
     if (!selectedRequest) return;
     setIsUpdating(true);
     setActionSuccessMsg('');
+    const targetStatus = overrideStatus || adminStatus;
+    const targetNote = overrideNote !== undefined ? overrideNote : adminNote.trim();
+
     try {
       const res = await api.updateCampusRequest(selectedRequest.public_id, {
-        status: adminStatus !== selectedRequest.status ? adminStatus : undefined,
+        status: targetStatus !== selectedRequest.status ? targetStatus : undefined,
         assigned_department: adminDept !== selectedRequest.assigned_department ? adminDept : undefined,
         assigned_staff: adminStaff !== selectedRequest.assigned_staff ? adminStaff : undefined,
         priority: adminPriority !== selectedRequest.priority ? adminPriority : undefined,
-        note: adminNote.trim() ? adminNote.trim() : undefined,
+        note: targetNote || undefined,
       });
 
       if (res.success && res.request) {
-        setActionSuccessMsg('Request updated successfully! Student notified.');
+        setActionSuccessMsg('Action completed! Student notified.');
         setSelectedRequest(res.request);
+        setAdminStatus(res.request.status);
         setAdminNote('');
-        // Refresh local requests list
         loadData(false);
       } else {
         alert(res.error || 'Failed to update request');
@@ -260,9 +331,9 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
         payload = {
           request_type: 'CERTIFICATE_REQUEST',
           title: `Bonafide Certificate Request (${formPurpose.trim()})`,
-          description: `Application for official Bonafide Certificate. Purpose: ${formPurpose.trim()}. ${formDesc.trim()}`,
+          description: `Application for official Bonafide Certificate. Purpose: ${formPurpose.trim()}. ${formDesc.trim()}`.trim(),
           category: 'BONAFIDE',
-          location: 'Academic Affairs Office',
+          location: 'Academic Registrar Office',
           priority: formPriority,
           meta: {
             certificate_type: 'BONAFIDE',
@@ -275,14 +346,14 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
       } else {
         // GATE_PASS or LEAVE_REQUEST
         if (!formReason.trim() || !formStartDate || !formReturnDate) {
-          setCreateError('Please provide reason, start date/time, and expected return date/time.');
+          setCreateError('Please provide reason, departure date/time, and expected return date/time.');
           setIsSubmitting(false);
           return;
         }
         const isPass = formPassType === 'GATE_PASS';
         payload = {
           request_type: isPass ? 'GATE_PASS' : 'LEAVE_REQUEST',
-          title: `${isPass ? 'Gate Pass' : 'Academic Leave'} Request: ${formReason.trim()}`,
+          title: `${isPass ? 'Gate Pass' : 'Academic Leave'}: ${formReason.trim()}`,
           description: `Destination: ${formDestination || 'Not specified'}. Reason: ${formReason.trim()}. Expected Return: ${formReturnDate}`,
           category: isPass ? 'GATE_PASS' : 'LEAVE_REQUEST',
           location: 'Campus Security / Warden Gate',
@@ -302,9 +373,14 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
       if (res.success && res.request) {
         setCreateModalOpen(false);
         resetForm();
+        setSubmissionSuccess({
+          id: res.request.public_id,
+          type: res.request.request_type.replace(/_/g, ' '),
+          status: res.request.status,
+          date: res.request.created_at.slice(0, 10),
+          title: res.request.title,
+        });
         loadData(false);
-        // Automatically open the detail modal to display the human-friendly ID & tracking!
-        handleOpenDetail(res.request);
       } else {
         setCreateError(res.error || 'Failed to submit request.');
       }
@@ -336,12 +412,13 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
   // Helper status badge styles
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'PENDING':
       case 'SUBMITTED':
         return {
           bg: 'bg-amber-50 text-amber-700 border-amber-200',
           dot: 'bg-amber-500',
           icon: Clock,
-          label: 'Submitted',
+          label: status === 'PENDING' ? 'Pending' : 'Submitted',
         };
       case 'ASSIGNED':
         return {
@@ -434,11 +511,11 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               Unified Campus Operations
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {isAdmin ? 'Campus Operations Command Center' : 'Campus Operations & Request Hub'}
+              {isStaffOrAdmin ? 'Campus Operations Command Center' : 'Campus Operations & Request Hub'}
             </h1>
             <p className="text-slate-300 text-sm mt-1.5 max-w-2xl leading-relaxed">
-              {isAdmin
-                ? 'Centralized operations desk for student complaints, certificate processing, gate passes, department workload, and live audit trails.'
+              {isStaffOrAdmin
+                ? 'Review student complaints, process bonafide certificates, manage gate passes, assign staff, and track resolution audit history.'
                 : 'Raise hostel maintenance complaints, apply for official bonafide certificates, request weekend gate passes or leaves, and track live status updates.'}
             </p>
           </div>
@@ -468,9 +545,9 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
           </div>
         </div>
 
-        {/* Quick Workflow Action Pills (Student-Friendly Shortcuts) */}
-        {!isAdmin && (
-          <div className="mt-6 pt-6 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Quick Workflow Action Shortcuts for Students */}
+        {!isStaffOrAdmin && (
+          <div className="mt-6 pt-6 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <button
               onClick={() => {
                 resetForm();
@@ -484,9 +561,28 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               </div>
               <div>
                 <p className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors">
-                  Hostel & Facility Complaint
+                  Hostel Complaint
                 </p>
-                <p className="text-[11px] text-slate-400">Plumbing, Wi-Fi, Electrical</p>
+                <p className="text-[11px] text-slate-400">Plumbing, room repairs & electrical</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                resetForm();
+                setCreateType('FACILITY_COMPLAINT');
+                setCreateModalOpen(true);
+              }}
+              className="flex items-center gap-3 p-3 rounded-2xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 text-left transition-all group cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/20 group-hover:scale-105 transition-transform">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors">
+                  Facility Complaint
+                </p>
+                <p className="text-[11px] text-slate-400">Labs, classrooms, campus Wi-Fi</p>
               </div>
             </button>
 
@@ -505,7 +601,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                 <p className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors">
                   Bonafide Certificate
                 </p>
-                <p className="text-[11px] text-slate-400">Bank loans, visa, scholarships</p>
+                <p className="text-[11px] text-slate-400">Official certificate for loan & passport</p>
               </div>
             </button>
 
@@ -524,71 +620,147 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                 <p className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">
                   Gate Pass / Leave
                 </p>
-                <p className="text-[11px] text-slate-400">Weekend outing & hackathon leave</p>
+                <p className="text-[11px] text-slate-400">Weekend outing or hackathon leave</p>
               </div>
             </button>
           </div>
         )}
       </div>
 
-      {/* KPI / Metric Summary Cards (Live from Backend Stats) */}
+      {/* Submission Success Alert Banner */}
+      <AnimatePresence>
+        {submissionSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs uppercase tracking-wider text-emerald-800">
+                    Request Submitted Successfully
+                  </span>
+                  <span className="font-mono text-xs font-extrabold px-2 py-0.5 rounded-md bg-emerald-200/80 text-emerald-900">
+                    {submissionSuccess.id}
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold border border-emerald-200">
+                    {submissionSuccess.status}
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  <strong>{submissionSuccess.title}</strong> • Created on {submissionSuccess.date}. Track updates below.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <button
+                onClick={() => {
+                  const target = requests.find((r) => r.public_id === submissionSuccess.id);
+                  if (target) handleOpenDetail(target);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer"
+              >
+                Track Timeline
+              </button>
+              <button
+                onClick={() => setSubmissionSuccess(null)}
+                className="p-1 rounded-lg text-emerald-700 hover:bg-emerald-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Error & Retry Banner */}
+      {apiError && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{apiError}</span>
+          </div>
+          <button
+            onClick={() => loadData(true)}
+            className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Summary KPI Cards (For Admin: 7 Required Summary Metrics) */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Total</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-slate-900">{stats.total}</span>
-              <span className="text-[10px] text-slate-400">Requests</span>
+              <span className="text-xl sm:text-2xl font-bold text-slate-900">{stats.total}</span>
+              <span className="text-[10px] text-slate-400">All</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-4 border border-amber-200/80 shadow-xs bg-gradient-to-br from-amber-50/40 to-white">
-            <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">Pending</span>
+          <div className="bg-white rounded-2xl p-3.5 border border-amber-200/80 shadow-xs bg-gradient-to-br from-amber-50/40 to-white">
+            <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider block">Pending</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-amber-600">{stats.pending}</span>
-              <span className="text-[10px] text-amber-600/80">Action Req.</span>
+              <span className="text-xl sm:text-2xl font-bold text-amber-600">{stats.pending}</span>
+              <span className="text-[10px] text-amber-600/80">Action</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-4 border border-indigo-200/80 shadow-xs bg-gradient-to-br from-indigo-50/40 to-white">
-            <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider">In Progress</span>
+          <div className="bg-white rounded-2xl p-3.5 border border-indigo-200/80 shadow-xs bg-gradient-to-br from-indigo-50/40 to-white">
+            <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider block">In Progress</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-indigo-600">{stats.in_progress}</span>
-              <span className="text-[10px] text-indigo-600/80">Assigned</span>
+              <span className="text-xl sm:text-2xl font-bold text-indigo-600">{stats.in_progress}</span>
+              <span className="text-[10px] text-indigo-600/80">Active</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-4 border border-emerald-200/80 shadow-xs bg-gradient-to-br from-emerald-50/40 to-white">
-            <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Resolved</span>
+          <div className="bg-white rounded-2xl p-3.5 border border-emerald-200/80 shadow-xs bg-gradient-to-br from-emerald-50/40 to-white">
+            <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">Approved</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-emerald-600">{stats.resolved}</span>
-              <span className="text-[10px] text-emerald-600/80">Completed</span>
+              <span className="text-xl sm:text-2xl font-bold text-emerald-600">{stats.approved}</span>
+              <span className="text-[10px] text-emerald-600/80">Passes</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-4 border border-red-200/80 shadow-xs bg-gradient-to-br from-red-50/40 to-white">
-            <span className="text-[11px] font-semibold text-red-700 uppercase tracking-wider">Aged (&gt;48h)</span>
+          <div className="bg-white rounded-2xl p-3.5 border border-teal-200/80 shadow-xs bg-gradient-to-br from-teal-50/40 to-white">
+            <span className="text-[11px] font-semibold text-teal-700 uppercase tracking-wider block">Resolved</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-red-600">{stats.aged_complaints}</span>
-              <span className="text-[10px] text-red-600/80">Overdue</span>
+              <span className="text-xl sm:text-2xl font-bold text-teal-600">{stats.resolved}</span>
+              <span className="text-[10px] text-teal-600/80">Done</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-4 border border-blue-200/80 shadow-xs bg-gradient-to-br from-blue-50/40 to-white">
-            <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider">Avg Resolution</span>
+          <div className="bg-white rounded-2xl p-3.5 border border-rose-200/80 shadow-xs bg-gradient-to-br from-rose-50/40 to-white">
+            <span className="text-[11px] font-semibold text-rose-700 uppercase tracking-wider block">Rejected</span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-blue-600">{stats.avg_resolution_hours}h</span>
-              <span className="text-[10px] text-blue-600/80">Speed</span>
+              <span className="text-xl sm:text-2xl font-bold text-rose-600">{stats.rejected}</span>
+              <span className="text-[10px] text-rose-600/80">Closed</span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-3.5 border border-slate-300 shadow-xs bg-gradient-to-br from-slate-50 to-white col-span-2 sm:col-span-1">
+            <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">Unassigned</span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-xl sm:text-2xl font-bold text-slate-700">{stats.unassigned}</span>
+              <span className="text-[10px] text-slate-500">Need Dept</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Operations Card Container */}
+      {/* Main Operations Container */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         {/* Navigation Tabs Bar */}
-        <div className="border-b border-slate-200 px-4 sm:px-6 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-3 sm:pb-0 scrollbar-none">
+        <div className="border-b border-slate-200 px-4 sm:px-6 pt-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-3 lg:pb-0 scrollbar-none">
             <button
               onClick={() => setActiveTab('all')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
@@ -636,7 +808,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               Gate Passes & Leave
             </button>
 
-            {isAdmin && (
+            {isStaffOrAdmin && (
               <button
                 onClick={() => setActiveTab('stats')}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
@@ -651,27 +823,43 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
             )}
           </div>
 
-          {/* Search and Filter Row */}
+          {/* Sort & Filter Controls */}
           {activeTab !== 'stats' && (
-            <div className="flex items-center gap-2 pb-3 sm:pb-3">
-              <div className="relative flex-1 sm:w-64">
+            <div className="flex flex-wrap items-center gap-2 pb-3">
+              {/* Search input */}
+              <div className="relative min-w-[180px] flex-1 sm:flex-initial">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search ID, title, room..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
 
+              {/* Request Type Filter */}
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-medium"
+              >
+                <option value="ALL">Type: All</option>
+                <option value="HOSTEL_COMPLAINT">Hostel Complaint</option>
+                <option value="FACILITY_COMPLAINT">Facility Complaint</option>
+                <option value="CERTIFICATE_REQUEST">Bonafide Certificate</option>
+                <option value="GATE_PASS">Gate Pass</option>
+                <option value="LEAVE_REQUEST">Leave Request</option>
+              </select>
+
+              {/* Status Filter */}
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-medium"
               >
                 <option value="ALL">Status: All</option>
-                <option value="SUBMITTED">Submitted</option>
+                <option value="PENDING">Pending / Submitted</option>
                 <option value="ASSIGNED">Assigned</option>
                 <option value="IN_PROGRESS">In Progress</option>
                 <option value="PROCESSING">Processing</option>
@@ -680,25 +868,60 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                 <option value="RESOLVED">Resolved</option>
                 <option value="COMPLETED">Completed</option>
                 <option value="REJECTED">Rejected</option>
-                <option value="CLOSED">Closed</option>
               </select>
 
-              <select
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-                className="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              >
-                <option value="ALL">Priority: All</option>
-                <option value="URGENT">Urgent</option>
-                <option value="HIGH">High</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="LOW">Low</option>
-              </select>
+              {/* Department Filter (Admin view) */}
+              {isStaffOrAdmin && (
+                <select
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+                  className="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700"
+                >
+                  <option value="ALL">Dept: All</option>
+                  <option value="Unassigned">Unassigned Only</option>
+                  {DEPARTMENTS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Assigned Staff Filter (Admin view) */}
+              {isStaffOrAdmin && (
+                <select
+                  value={staffFilter}
+                  onChange={(e) => setStaffFilter(e.target.value)}
+                  className="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700"
+                >
+                  <option value="ALL">Staff: All</option>
+                  <option value="Unassigned">Unassigned Only</option>
+                  {staffList.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Sort Order */}
+              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+                <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="text-xs bg-transparent text-slate-700 font-medium focus:outline-none"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="ageing">Oldest Unresolved (Ageing)</option>
+                </select>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Tab 5: Admin Workload & Department Analytics View */}
+        {/* Tab 5: Department Workload & Stats View */}
         {activeTab === 'stats' && stats && (
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -784,7 +1007,8 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               filteredRequests.map((req) => {
                 const statusBadge = getStatusBadge(req.status);
                 const StatusIcon = statusBadge.icon;
-                const isAged = req.age?.is_aged && (req.status === 'SUBMITTED' || req.status === 'ASSIGNED');
+                const isUnresolved = !['RESOLVED', 'APPROVED', 'COMPLETED', 'CLOSED', 'REJECTED'].includes(req.status);
+                const isAged = req.age?.is_aged && isUnresolved;
 
                 return (
                   <div
@@ -814,11 +1038,11 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                           {isAged && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 font-bold flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" />
-                              Aged (&gt;48h)
+                              Aged ({req.age?.formatted})
                             </span>
                           )}
                           <span className="text-[11px] text-slate-400">
-                            • {req.age?.formatted ? `${req.age.formatted} ago` : req.created_at.slice(0, 10)}
+                            • Age: <strong className="text-slate-600">{req.age?.formatted}</strong>
                           </span>
                         </div>
 
@@ -831,17 +1055,25 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                         </p>
 
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-500">
+                          {isStaffOrAdmin && (
+                            <span className="flex items-center gap-1 text-slate-700 font-medium">
+                              <User className="w-3 h-3 text-slate-400" />
+                              {req.student_name} ({req.student_identifier})
+                            </span>
+                          )}
                           {req.location && (
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-slate-400" />
                               {req.location}
                             </span>
                           )}
-                          {req.assigned_department && (
+                          {req.assigned_department ? (
                             <span className="flex items-center gap-1 text-slate-600">
                               <Building2 className="w-3 h-3 text-slate-400" />
                               {req.assigned_department}
                             </span>
+                          ) : (
+                            <span className="text-amber-600 font-semibold">• Unassigned</span>
                           )}
                           {req.assigned_staff && (
                             <span className="flex items-center gap-1 text-indigo-600 font-medium">
@@ -881,7 +1113,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
       {/* Detail & Activity Timeline Modal */}
       <AnimatePresence>
         {detailModalOpen && selectedRequest && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -894,12 +1126,12 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col z-10"
+              className="relative w-full max-w-2xl max-h-[92vh] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col z-10"
             >
               {/* Modal Header */}
-              <div className="p-6 border-b border-slate-200 bg-slate-50/60 flex items-start justify-between gap-4">
+              <div className="p-5 sm:p-6 border-b border-slate-200 bg-slate-50/60 flex items-start justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2 mb-1.5">
+                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
                     <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-md border border-indigo-200">
                       {selectedRequest.public_id}
                     </span>
@@ -914,7 +1146,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                       {selectedRequest.request_type.replace(/_/g, ' ')}
                     </span>
                   </div>
-                  <h2 className="text-lg font-bold text-slate-900">{selectedRequest.title}</h2>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">{selectedRequest.title}</h2>
                 </div>
 
                 <button
@@ -926,12 +1158,12 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               </div>
 
               {/* Modal Body (Scrollable) */}
-              <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
                 {/* Description & Metadata Card */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
                   <div>
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      Description
+                      Description & Scope
                     </span>
                     <p className="text-xs text-slate-800 mt-1 leading-relaxed">
                       {selectedRequest.description}
@@ -939,6 +1171,12 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200/80 text-xs">
+                    <div>
+                      <span className="text-slate-400 text-[10px] uppercase font-semibold">Student</span>
+                      <p className="font-semibold text-slate-800 mt-0.5">
+                        {selectedRequest.student_name} ({selectedRequest.student_identifier})
+                      </p>
+                    </div>
                     <div>
                       <span className="text-slate-400 text-[10px] uppercase font-semibold">Location</span>
                       <p className="font-medium text-slate-800 mt-0.5">{selectedRequest.location || 'N/A'}</p>
@@ -954,6 +1192,22 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                       <p className="font-medium text-slate-800 mt-0.5">
                         {selectedRequest.assigned_staff || 'Unassigned'}
                       </p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] uppercase font-semibold">Operational Age</span>
+                      <p className="font-medium text-slate-800 mt-0.5">{selectedRequest.age?.formatted}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] uppercase font-semibold">Current Status</span>
+                      <div className="mt-0.5">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            getStatusBadge(selectedRequest.status).bg
+                          }`}
+                        >
+                          {getStatusBadge(selectedRequest.status).label}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -976,51 +1230,56 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                     </div>
                   )}
 
-                  {/* Age and resolution duration badge */}
-                  <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
-                    <span>
-                      Created: <strong className="text-slate-700">{selectedRequest.created_at}</strong>
-                    </span>
-                    {selectedRequest.resolved_at ? (
-                      <span className="text-emerald-600 font-bold">
-                        Resolved: {selectedRequest.resolved_at} ({selectedRequest.resolution_time?.formatted})
+                  {/* Resolution banner if resolved */}
+                  {selectedRequest.resolved_at && (
+                    <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs text-emerald-700 bg-emerald-50/50 p-2 rounded-xl border border-emerald-100">
+                      <span className="flex items-center gap-1 font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Resolved on {selectedRequest.resolved_at}
                       </span>
-                    ) : (
-                      <span>
-                        Age: <strong className="text-slate-700">{selectedRequest.age?.formatted}</strong>
+                      <span className="font-bold">
+                        Turnaround: {selectedRequest.resolution_time?.formatted}
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Audit & Activity Timeline Section */}
+                {/* Audit & Activity Timeline Section (Lightweight & Mobile-Friendly) */}
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
                     <Clock className="w-4 h-4 text-indigo-600" />
-                    Activity & Audit History
+                    Consistent Activity Timeline
                   </h3>
 
                   {selectedRequest.activities && selectedRequest.activities.length > 0 ? (
-                    <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                    <div className="relative pl-6 space-y-3.5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
                       {selectedRequest.activities.map((act) => {
+                        const isResolved = act.action.includes('RESOLVED') || act.action.includes('APPROVED') || act.action.includes('COMPLETED');
                         return (
                           <div key={act.id} className="relative">
-                            <div className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-indigo-600 ring-4 ring-white" />
+                            <div
+                              className={`absolute -left-6 top-1 w-3 h-3 rounded-full ring-4 ring-white ${
+                                isResolved ? 'bg-emerald-500' : 'bg-indigo-600'
+                              }`}
+                            />
                             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="font-semibold text-slate-800">
-                                  {act.action.replace(/_/g, ' ')}
+                              <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
+                                <span className="font-bold text-slate-800 flex items-center gap-1">
+                                  {isResolved && <Check className="w-3 h-3 text-emerald-600" />}
+                                  {act.notes || act.action.replace(/_/g, ' ')}
                                 </span>
-                                <span className="text-[10px] text-slate-400">{act.created_at}</span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {act.created_at}
+                                </span>
                               </div>
-                              <p className="text-slate-600 text-[11px]">{act.notes}</p>
-                              <div className="mt-1.5 flex items-center gap-2 text-[10px] text-slate-400">
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
                                 <span>
-                                  By: <strong>{act.actor_name}</strong> ({act.actor_role})
+                                  Actor: <strong className="text-slate-700">{act.actor_name}</strong> (
+                                  <span className="capitalize">{act.actor_role}</span>)
                                 </span>
                                 {act.new_status && (
-                                  <span className="font-mono px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
-                                    {act.new_status}
+                                  <span className="font-mono px-1.5 py-0.2 rounded bg-slate-200/80 text-slate-700 font-bold">
+                                    &rarr; {act.new_status}
                                   </span>
                                 )}
                               </div>
@@ -1034,13 +1293,13 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                   )}
                 </div>
 
-                {/* Admin Quick Action Panel (Admin role only) */}
-                {isAdmin && (
-                  <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-4">
+                {/* Admin Quick Action Panel (Authorized Staff/Admin only) */}
+                {isStaffOrAdmin && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-indigo-600" />
-                        Admin Operational Actions
+                        <Shield className="w-3.5 h-3.5 text-indigo-600" />
+                        Admin / Staff Action Console
                       </h4>
                       {actionSuccessMsg && (
                         <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
@@ -1050,6 +1309,138 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                       )}
                     </div>
 
+                    {/* Quick Demonstration Buttons based on Workflow */}
+                    <div className="p-3 rounded-xl bg-white border border-indigo-100 space-y-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Quick Transition Actions
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {/* Complaint Actions */}
+                        {selectedRequest.request_type.includes('COMPLAINT') && (
+                          <>
+                            {selectedRequest.status === 'PENDING' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdminStatus('ASSIGNED');
+                                  if (!adminDept) setAdminDept('Hostel Maintenance & Plumbing');
+                                  handleAdminUpdate('ASSIGNED', 'Assigned to Maintenance');
+                                }}
+                                disabled={isUpdating}
+                                className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
+                              >
+                                Assign to Maintenance
+                              </button>
+                            )}
+                            {(selectedRequest.status === 'PENDING' || selectedRequest.status === 'ASSIGNED') && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdminStatus('IN_PROGRESS');
+                                  handleAdminUpdate('IN_PROGRESS', 'Status changed to In Progress');
+                                }}
+                                disabled={isUpdating}
+                                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer"
+                              >
+                                Mark In Progress
+                              </button>
+                            )}
+                            {selectedRequest.status === 'IN_PROGRESS' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdminStatus('RESOLVED');
+                                  handleAdminUpdate('RESOLVED', 'Complaint resolved');
+                                }}
+                                disabled={isUpdating}
+                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer"
+                              >
+                                Resolve Complaint
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        {/* Bonafide Certificate Actions */}
+                        {selectedRequest.request_type === 'CERTIFICATE_REQUEST' && (
+                          <>
+                            {selectedRequest.status === 'SUBMITTED' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdminStatus('PROCESSING');
+                                  handleAdminUpdate('PROCESSING', 'Moved to processing');
+                                }}
+                                disabled={isUpdating}
+                                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer"
+                              >
+                                Move to Processing
+                              </button>
+                            )}
+                            {selectedRequest.status === 'PROCESSING' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdminStatus('APPROVED');
+                                  handleAdminUpdate('APPROVED', 'Request approved');
+                                }}
+                                disabled={isUpdating}
+                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer"
+                              >
+                                Approve Certificate
+                              </button>
+                            )}
+                            {selectedRequest.status === 'APPROVED' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdminStatus('COMPLETED');
+                                  handleAdminUpdate('COMPLETED', 'Certificate completed');
+                                }}
+                                disabled={isUpdating}
+                                className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold cursor-pointer"
+                              >
+                                Mark Completed
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        {/* Gate Pass / Leave Actions */}
+                        {(selectedRequest.request_type === 'GATE_PASS' || selectedRequest.request_type === 'LEAVE_REQUEST') && (
+                          <>
+                            {(selectedRequest.status === 'PENDING' || selectedRequest.status === 'SUBMITTED' || selectedRequest.status === 'UNDER_REVIEW') && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAdminStatus('APPROVED');
+                                    handleAdminUpdate('APPROVED', 'Gate pass approved by warden');
+                                  }}
+                                  disabled={isUpdating}
+                                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer"
+                                >
+                                  Approve Pass
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAdminStatus('REJECTED');
+                                    handleAdminUpdate('REJECTED', 'Request rejected by warden');
+                                  }}
+                                  disabled={isUpdating}
+                                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer"
+                                >
+                                  Reject Pass
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Detailed Fields Configuration */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-[11px] font-semibold text-slate-600 block mb-1">
@@ -1062,10 +1453,11 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                         >
                           {selectedRequest.request_type.includes('COMPLAINT') && (
                             <>
-                              <option value="SUBMITTED">SUBMITTED</option>
+                              <option value="PENDING">PENDING</option>
                               <option value="ASSIGNED">ASSIGNED</option>
                               <option value="IN_PROGRESS">IN_PROGRESS</option>
                               <option value="RESOLVED">RESOLVED</option>
+                              <option value="REJECTED">REJECTED</option>
                               <option value="CLOSED">CLOSED</option>
                             </>
                           )}
@@ -1081,7 +1473,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                           {(selectedRequest.request_type === 'GATE_PASS' ||
                             selectedRequest.request_type === 'LEAVE_REQUEST') && (
                             <>
-                              <option value="SUBMITTED">SUBMITTED</option>
+                              <option value="PENDING">PENDING</option>
                               <option value="UNDER_REVIEW">UNDER_REVIEW</option>
                               <option value="APPROVED">APPROVED</option>
                               <option value="REJECTED">REJECTED</option>
@@ -1140,11 +1532,11 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
 
                     <div>
                       <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                        Operational Update / Note (sent to student)
+                        Operational Update / Note (Logged in audit trail and notified to student)
                       </label>
                       <input
                         type="text"
-                        placeholder="Add inspection note or decision reason..."
+                        placeholder="Add reason, inspection note, or instructions..."
                         value={adminNote}
                         onChange={(e) => setAdminNote(e.target.value)}
                         className="w-full text-xs p-2 rounded-xl border border-slate-300 bg-white text-slate-800"
@@ -1153,12 +1545,12 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
 
                     <div className="flex justify-end gap-2 pt-2">
                       <button
-                        onClick={handleAdminUpdate}
+                        onClick={() => handleAdminUpdate()}
                         disabled={isUpdating}
                         className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
                       >
                         {isUpdating && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                        Apply Update & Notify Student
+                        Save Update & Notify Student
                       </button>
                     </div>
                   </div>
@@ -1182,7 +1574,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
       {/* Create Request Modal */}
       <AnimatePresence>
         {createModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1195,7 +1587,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-xl max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col z-10"
+              className="relative w-full max-w-xl max-h-[92vh] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col z-10"
             >
               {/* Header */}
               <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
@@ -1214,7 +1606,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               </div>
 
               {/* Workflow Selector Tabs */}
-              <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center gap-2 overflow-x-auto">
+              <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center gap-2 overflow-x-auto scrollbar-none">
                 <button
                   type="button"
                   onClick={() => {
@@ -1229,6 +1621,22 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                 >
                   <Wrench className="w-3.5 h-3.5" />
                   Hostel Complaint
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateType('FACILITY_COMPLAINT');
+                    setCreateError('');
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    createType === 'FACILITY_COMPLAINT'
+                      ? 'bg-cyan-600 text-white shadow-xs'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  Facility Complaint
                 </button>
 
                 <button
@@ -1265,7 +1673,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               </div>
 
               {/* Form Content */}
-              <form onSubmit={handleCreateSubmit} className="p-6 overflow-y-auto space-y-4 flex-1">
+              <form onSubmit={handleCreateSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
                 {createError && (
                   <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -1276,6 +1684,26 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                 {/* Workflow 1: Complaint Form */}
                 {(createType === 'HOSTEL_COMPLAINT' || createType === 'FACILITY_COMPLAINT') && (
                   <>
+                    <div className="flex gap-4 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="complaintSubtype"
+                          checked={createType === 'HOSTEL_COMPLAINT'}
+                          onChange={() => setCreateType('HOSTEL_COMPLAINT')}
+                        />
+                        Hostel Complaint
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="complaintSubtype"
+                          checked={createType === 'FACILITY_COMPLAINT'}
+                          onChange={() => setCreateType('FACILITY_COMPLAINT')}
+                        />
+                        Facility Complaint
+                      </label>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs font-bold text-slate-700 block mb-1">
@@ -1411,7 +1839,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
 
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">
-                        Additional Notes / Specific Wording Required
+                        Additional Notes / Specific Requirements
                       </label>
                       <textarea
                         rows={2}

@@ -201,7 +201,10 @@ export interface CampusOperationsStats {
   total: number;
   pending: number;
   in_progress: number;
+  approved: number;
   resolved: number;
+  rejected: number;
+  unassigned: number;
   aged_complaints: number;
   avg_resolution_hours: number;
   by_type: Record<string, number>;

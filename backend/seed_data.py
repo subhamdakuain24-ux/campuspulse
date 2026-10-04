@@ -66,6 +66,35 @@ def seed_database(db_file=None):
         82.4
     ))
 
+    # Seed Student B (Jane Smith) for RBAC boundary testing
+    cur.execute("""
+        INSERT OR REPLACE INTO students (
+            id, student_id, name, email, phone, program, department, semester,
+            term, academic_year, avatar_url, campus_address, gpa, gpa_change,
+            credits_earned, credits_total, enrolled_year, graduation_year, overall_attendance_pct
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        "2",
+        "CP-992211",
+        "Jane Smith",
+        "jane.smith@university.edu",
+        "+1 (555) 789-0123",
+        "B.S. Electrical & Electronics Engineering",
+        "School of Engineering",
+        4,
+        "Fall 2023",
+        "2023 - 2024",
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+        "Room 205, Maple Hall",
+        3.91,
+        "+0.05 this term",
+        64,
+        128,
+        2022,
+        2026,
+        89.0
+    ))
+
     # 2. Seed Subjects
     subjects_data = [
         ("SUB-CS301", "CS301", "Data Structures & Algorithms", "Computer Science", "Dr. Robert Chen", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100", 4, "Hall 302", "#3B82F6"),
@@ -266,6 +295,17 @@ def seed_database(db_file=None):
             "Campus Operations & IT Administration",
             "+1 (555) 901-4422",
             "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
+        ),
+        (
+            "2",
+            "CP-992211",
+            "Jane Smith",
+            "jane.smith@university.edu",
+            "student",
+            dev_password_hash,
+            "School of Engineering",
+            "+1 (555) 789-0123",
+            "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80"
         )
     ]
 
@@ -381,6 +421,27 @@ def seed_database(db_file=None):
             '{"request_sub_type": "LEAVE", "reason": "National Robotics Championship participation", "destination": "Metropolitan Convention Center", "start_date": "2026-10-12 08:00", "return_date": "2026-10-15 18:00", "emergency_contact": "+1 (555) 392-8819"}',
             "2026-10-03 11:15:00",
             "2026-10-03 11:30:00",
+            None
+        ),
+        (
+            20,
+            "CP-10020",
+            "2",
+            "Jane Smith",
+            "CP-992211",
+            "School of Engineering",
+            "HOSTEL_COMPLAINT",
+            "Room 205 Study Table Drawer Broken",
+            "The top wooden drawer is jammed and handle came loose.",
+            "HOSTEL",
+            "Maple Hall, Room 205",
+            "LOW",
+            "PENDING",
+            None,
+            None,
+            '{"contact_phone": "+1 (555) 789-0123"}',
+            "2026-10-03 15:00:00",
+            "2026-10-03 15:00:00",
             None
         )
     ]

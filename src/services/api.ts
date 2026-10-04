@@ -1125,7 +1125,10 @@ class ApiService {
     status?: string;
     category?: string;
     priority?: string;
+    department?: string;
+    staff?: string;
     search?: string;
+    sort?: string;
     student_id?: string;
   }): Promise<CampusRequest[]> {
     try {
@@ -1134,7 +1137,10 @@ class ApiService {
       if (filters?.status) queryParams.set('status', filters.status);
       if (filters?.category) queryParams.set('category', filters.category);
       if (filters?.priority) queryParams.set('priority', filters.priority);
+      if (filters?.department) queryParams.set('department', filters.department);
+      if (filters?.staff) queryParams.set('staff', filters.staff);
       if (filters?.search) queryParams.set('search', filters.search);
+      if (filters?.sort) queryParams.set('sort', filters.sort);
       if (filters?.student_id) queryParams.set('student_id', filters.student_id);
 
       const qs = queryParams.toString() ? `?${queryParams.toString()}` : '';

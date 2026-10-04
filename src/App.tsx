@@ -171,7 +171,9 @@ export default function App() {
                   onNavigateToNotifications={() => handleNavigate('notifications')}
                 />
               )}
-              {currentScreen === 'notifications' && <NotificationsScreen />}
+              {currentScreen === 'notifications' && (
+                <NotificationsScreen onNavigate={handleNavigate} />
+              )}
               {currentScreen === 'profile' && (
                 <ProfileScreen user={user} onUpdateUser={handleUpdateUser} />
               )}

@@ -16,10 +16,14 @@ import {
   Server,
 } from 'lucide-react';
 import { initialNotifications } from '../data/mockData';
-import { NotificationItem } from '../types';
+import { NotificationItem, ScreenId } from '../types';
 import { api } from '../services/api';
 
-export const NotificationsScreen: React.FC = () => {
+interface NotificationsScreenProps {
+  onNavigate?: (screen: ScreenId) => void;
+}
+
+export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavigate }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeDetailItem, setActiveDetailItem] = useState<NotificationItem | null>(null);
@@ -74,6 +78,7 @@ export const NotificationsScreen: React.FC = () => {
     if (selectedCategory === 'alerts') return item.category === 'alerts' || item.badgeType === 'urgent';
     if (selectedCategory === 'exams') return item.category === 'exams';
     if (selectedCategory === 'academic') return item.category === 'academic';
+    if (selectedCategory === 'campus') return item.category === 'campus' || item.badgeType === 'campus';
     return true;
   });
 
@@ -171,6 +176,20 @@ export const NotificationsScreen: React.FC = () => {
               <span>Academic</span>
             </div>
           </button>
+
+          <button
+            onClick={() => setSelectedCategory('campus')}
+            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+              selectedCategory === 'campus'
+                ? 'bg-blue-600 text-white shadow-xs font-bold'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Building className="w-4 h-4 text-sky-500" />
+              <span>Campus Operations</span>
+            </div>
+          </button>
         </div>
 
         {/* Right Notification Feed (Page 8 Right) */}
@@ -252,15 +271,20 @@ export const NotificationsScreen: React.FC = () => {
                       {item.description}
                     </p>
 
-                    {/* Action Button if specified (e.g., View Details in red button for Urgent) */}
+                    {/* Action Button if specified */}
                     {item.actionButtonText && (
                       <div className="mt-4">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleMarkAsRead(item.id);
+                            if ((item.category === 'campus' || item.badgeType === 'campus') && onNavigate) {
+                              onNavigate('operations');
+                              return;
+                            }
                             setActiveDetailItem(item);
                           }}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs ${
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer ${
                             item.actionButtonType === 'danger'
                               ? 'bg-red-600 hover:bg-red-700 active:bg-red-800 text-white'
                               : 'bg-blue-600 hover:bg-blue-700 text-white'

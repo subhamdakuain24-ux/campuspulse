@@ -15,17 +15,17 @@ VALID_REQUEST_TYPES = {
 }
 
 VALID_STATUSES = {
-    "HOSTEL_COMPLAINT": ["SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "CLOSED"],
-    "FACILITY_COMPLAINT": ["SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "CLOSED"],
-    "CERTIFICATE_REQUEST": ["SUBMITTED", "PROCESSING", "APPROVED", "REJECTED", "COMPLETED"],
-    "GATE_PASS": ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED"],
-    "LEAVE_REQUEST": ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED"]
+    "HOSTEL_COMPLAINT": ["PENDING", "SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "REJECTED", "CLOSED"],
+    "FACILITY_COMPLAINT": ["PENDING", "SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "REJECTED", "CLOSED"],
+    "CERTIFICATE_REQUEST": ["SUBMITTED", "PENDING", "PROCESSING", "APPROVED", "REJECTED", "COMPLETED"],
+    "GATE_PASS": ["PENDING", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED"],
+    "LEAVE_REQUEST": ["PENDING", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED"]
 }
 
 VALID_PRIORITIES = {"LOW", "MEDIUM", "HIGH", "URGENT"}
 
 def calculate_time_diff_human(start_str: str, end_str: str | None = None) -> dict:
-    """Calculates elapsed duration between two timestamps."""
+    """Calculates elapsed duration between two timestamps in simple, understandable format."""
     try:
         start_dt = datetime.strptime(start_str[:19], "%Y-%m-%d %H:%M:%S")
         end_dt = datetime.strptime(end_str[:19], "%Y-%m-%d %H:%M:%S") if end_str else datetime.utcnow()
@@ -34,12 +34,23 @@ def calculate_time_diff_human(start_str: str, end_str: str | None = None) -> dic
         hours = total_seconds / 3600.0
         days = total_seconds / 86400.0
         
-        if total_seconds < 3600:
-            formatted = f"{max(1, total_seconds // 60)}m"
+        mins = total_seconds // 60
+        hrs = total_seconds // 3600
+        rem_mins = mins % 60
+        
+        if total_seconds < 60:
+            formatted = "Just now"
+        elif total_seconds < 3600:
+            formatted = f"{mins}m"
         elif hours < 24:
-            formatted = f"{round(hours, 1)}h"
+            if rem_mins > 0:
+                formatted = f"{hrs}h {rem_mins}m"
+            else:
+                formatted = f"{hrs}h"
+        elif int(days) == 1:
+            formatted = "1 day"
         else:
-            formatted = f"{round(days, 1)}d"
+            formatted = f"{int(days)} days"
             
         return {
             "total_seconds": total_seconds,
@@ -86,8 +97,9 @@ def format_request_record(row: dict) -> dict:
 def get_campus_requests():
     """
     List campus requests.
-    Supports filters: type, status, category, priority, student_id, search.
-    Students default to their own requests. Admins/Teachers see all unless filtered.
+    Supports filters: type, status, category, priority, department, staff, student_id, search, sort.
+    Students restricted to their own requests. Admins/Teachers see all unless filtered.
+    Sort supports: newest (default), oldest, ageing.
     """
     user = g.current_user
     user_role = (user.get("role") or "").lower()
@@ -96,7 +108,10 @@ def get_campus_requests():
     status = request.args.get("status", "").strip()
     category = request.args.get("category", "").strip()
     priority = request.args.get("priority", "").strip()
+    department = request.args.get("department", "").strip()
+    staff = request.args.get("staff", "").strip()
     search = request.args.get("search", "").strip().lower()
+    sort_by = request.args.get("sort", "newest").strip().lower()
     student_id = request.args.get("student_id", "").strip()
 
     conn = get_db_connection()
@@ -105,11 +120,15 @@ def get_campus_requests():
     query = "SELECT * FROM campus_requests WHERE 1=1"
     params = []
 
-    # If student, restrict to their own ID unless they explicitly pass an allowed filter
+    # If student, restrict to their own ID
     if user_role == "student":
-        student_id = user.get("id") or "1"
-        query += " AND (student_id = ? OR student_id = '1' OR student_identifier = ?)"
-        params.extend([student_id, user.get("identifier") or "CP-847291"])
+        curr_id = str(user.get("id") or "")
+        curr_ident = str(user.get("identifier") or "")
+        if curr_id == "1" or curr_ident in ("STU-2023-8941", "CP-847291"):
+            query += " AND (student_id IN ('1', 'STU-2023-8941') OR student_identifier IN ('CP-847291', 'STU-2023-8941'))"
+        else:
+            query += " AND (student_id = ? OR student_identifier = ?)"
+            params.extend([curr_id, curr_ident])
     elif student_id:
         query += " AND student_id = ?"
         params.append(student_id)
@@ -118,24 +137,40 @@ def get_campus_requests():
         query += " AND request_type = ?"
         params.append(req_type)
 
-    if status:
+    if status and status != "ALL":
         query += " AND status = ?"
         params.append(status.upper())
 
-    if category:
+    if category and category != "ALL":
         query += " AND category = ?"
         params.append(category.upper())
 
-    if priority:
+    if priority and priority != "ALL":
         query += " AND priority = ?"
         params.append(priority.upper())
 
-    if search:
-        query += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(public_id) LIKE ? OR LOWER(location) LIKE ?)"
-        term = f"%{search}%"
-        params.extend([term, term, term, term])
+    if department and department != "ALL":
+        query += " AND assigned_department = ?"
+        params.append(department)
 
-    query += " ORDER BY id DESC"
+    if staff and staff != "ALL":
+        query += " AND assigned_staff = ?"
+        params.append(staff)
+
+    if search:
+        query += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(public_id) LIKE ? OR LOWER(location) LIKE ? OR LOWER(student_name) LIKE ?)"
+        term = f"%{search}%"
+        params.extend([term, term, term, term, term])
+
+    # Sorting
+    if sort_by == "oldest":
+        query += " ORDER BY id ASC"
+    elif sort_by == "ageing":
+        # Unresolved requests come first, ordered from oldest to newest
+        query += " ORDER BY CASE WHEN status IN ('RESOLVED','APPROVED','COMPLETED','CLOSED','REJECTED') THEN 1 ELSE 0 END ASC, id ASC"
+    else:
+        # Default newest
+        query += " ORDER BY id DESC"
 
     cur.execute(query, tuple(params))
     rows = cur.fetchall()
@@ -155,7 +190,11 @@ def get_request_detail(ident: str):
     """
     Get detailed information for a request, including its full audit timeline.
     Identifier can be internal numeric ID or human-friendly public_id (e.g. CP-10001).
+    Enforces RBAC: Students can only view their own requests.
     """
+    user = g.current_user
+    user_role = (user.get("role") or "").lower()
+
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -168,6 +207,19 @@ def get_request_detail(ident: str):
     if not req_row:
         conn.close()
         return jsonify({"success": False, "error": "Campus request not found"}), 404
+
+    # RBAC Security Check: Student can only view their own requests
+    if user_role == "student":
+        allowed_student_ids = {str(user.get("id")), str(user.get("identifier"))}
+        if str(user.get("id")) == "1":
+            allowed_student_ids.add("STU-2023-8941")
+            allowed_student_ids.add("CP-847291")
+        if str(req_row["student_id"]) not in allowed_student_ids and str(req_row["student_identifier"]) not in allowed_student_ids:
+            conn.close()
+            return jsonify({
+                "success": False,
+                "error": "Forbidden: You are not authorized to view another student's request."
+            }), 403
 
     req_id = req_row["id"]
     public_id = req_row["public_id"]
@@ -194,11 +246,9 @@ def get_request_detail(ident: str):
 def create_campus_request():
     """
     Create a new campus request across any supported workflow:
-    - HOSTEL_COMPLAINT
-    - FACILITY_COMPLAINT
-    - CERTIFICATE_REQUEST
-    - GATE_PASS
-    - LEAVE_REQUEST
+    - HOSTEL_COMPLAINT / FACILITY_COMPLAINT (Initial status: PENDING)
+    - CERTIFICATE_REQUEST (Initial status: SUBMITTED)
+    - GATE_PASS / LEAVE_REQUEST (Initial status: PENDING)
     Automatically generates human-friendly public ID (e.g. CP-10006)
     and logs initial audit activity.
     """
@@ -244,8 +294,17 @@ def create_campus_request():
     public_id = f"CP-{next_num}"
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Determine default initial status
-    initial_status = "SUBMITTED"
+    # Workflow initial statuses
+    if req_type == "CERTIFICATE_REQUEST":
+        initial_status = "SUBMITTED"
+        initial_activity_note = "Certificate request submitted"
+    elif req_type in ("GATE_PASS", "LEAVE_REQUEST"):
+        initial_status = "PENDING"
+        initial_activity_note = "Gate pass / leave request submitted"
+    else:
+        # Complaints
+        initial_status = "PENDING"
+        initial_activity_note = "Complaint created"
 
     student_id = str(user.get("id") or "1")
     student_name = user.get("name") or "Alex Johnson"
@@ -279,7 +338,7 @@ def create_campus_request():
         user.get("name") or "Alex Johnson",
         user.get("role") or "student",
         "REQUEST_CREATED", None, initial_status,
-        f"Request {public_id} submitted via CampusPulse portal.",
+        initial_activity_note,
         now_str
     ))
 
@@ -303,7 +362,7 @@ def create_campus_request():
 @require_auth
 def update_campus_request(ident: str):
     """
-    Administrative update on a campus request:
+    Administrative / Staff update on a campus request:
     - Status change with type-specific validation
     - Department assignment
     - Staff assignment
@@ -311,9 +370,17 @@ def update_campus_request(ident: str):
     - Add operational note/comment
     - Automatic recording in audit trail
     - In-app notification generated for student
+    RBAC: Students are FORBIDDEN from modifying administrative requests.
     """
     user = g.current_user
     user_role = (user.get("role") or "").lower()
+
+    # RBAC Enforcement: Students are strictly forbidden from modifying requests
+    if user_role == "student":
+        return jsonify({
+            "success": False,
+            "error": "Forbidden: Students are not permitted to modify operational requests or administrative status."
+        }), 403
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -366,20 +433,41 @@ def update_campus_request(ident: str):
             if new_status in ("RESOLVED", "COMPLETED"):
                 updates.append("resolved_at = ?")
                 params.append(now_str)
-            elif new_status in ("IN_PROGRESS", "PROCESSING", "UNDER_REVIEW") and existing.get("resolved_at"):
+            elif new_status in ("IN_PROGRESS", "PROCESSING", "UNDER_REVIEW", "PENDING", "ASSIGNED") and existing.get("resolved_at"):
                 updates.append("resolved_at = NULL")
 
             action_type = "STATUS_CHANGED"
-            if new_status == "APPROVED":
-                action_type = "APPROVED"
-            elif new_status == "REJECTED":
-                action_type = "REJECTED"
+            note_desc = ""
+            if new_status == "ASSIGNED":
+                action_type = "ASSIGNED"
+                note_desc = f"Assigned to {assigned_dept or 'department'}"
+            elif new_status == "IN_PROGRESS":
+                action_type = "STATUS_CHANGED"
+                note_desc = "Status changed to In Progress"
             elif new_status == "RESOLVED":
                 action_type = "RESOLVED"
+                note_desc = "Complaint resolved"
+            elif new_status == "APPROVED":
+                action_type = "APPROVED"
+                note_desc = "Request approved"
+            elif new_status == "PROCESSING":
+                action_type = "STATUS_CHANGED"
+                note_desc = "Moved to processing"
+            elif new_status == "COMPLETED":
+                action_type = "COMPLETED"
+                note_desc = "Certificate completed"
+            elif new_status == "REJECTED":
+                action_type = "REJECTED"
+                note_desc = "Request rejected"
             elif new_status == "CLOSED":
                 action_type = "CLOSED"
+                note_desc = "Request closed"
+            else:
+                note_desc = f"Status updated from {old_status} to {new_status}"
 
-            note_desc = admin_note if admin_note else f"Status updated from {old_status} to {new_status}."
+            if admin_note:
+                note_desc = f"{note_desc} — {admin_note}"
+
             actions_logged.append({
                 "action": action_type,
                 "old_status": old_status,
@@ -395,7 +483,7 @@ def update_campus_request(ident: str):
             "action": "ASSIGNED_DEPARTMENT",
             "old_status": old_status,
             "new_status": new_status or old_status,
-            "notes": f"Assigned department: {assigned_dept}"
+            "notes": f"Assigned to {assigned_dept}"
         })
 
     # 3. Assigned Staff update
@@ -406,7 +494,7 @@ def update_campus_request(ident: str):
             "action": "ASSIGNED_STAFF",
             "old_status": old_status,
             "new_status": new_status or old_status,
-            "notes": f"Assigned staff: {assigned_staff}"
+            "notes": f"Assigned to {assigned_staff}"
         })
 
     # 4. Priority update
@@ -421,7 +509,7 @@ def update_campus_request(ident: str):
         })
 
     # 5. Standalone Admin Note without status change
-    if admin_note and not new_status:
+    if admin_note and not new_status and not (assigned_dept or assigned_staff):
         actions_logged.append({
             "action": "ADMIN_NOTE",
             "old_status": old_status,
@@ -456,11 +544,61 @@ def update_campus_request(ident: str):
             act["action"], act["old_status"], act["new_status"], act["notes"], now_str
         ))
 
-    # Automatic student notification delivery
-    if new_status and new_status != old_status:
+    # Automatic student notification delivery into EXISTING notifications table
+    if (new_status and new_status != old_status) or (assigned_dept and not existing.get("assigned_department")):
         notif_id = f"NOTIF-{public_id}-{int(datetime.utcnow().timestamp() * 1000)}-{uuid.uuid4().hex[:6]}"
-        notif_title = f"{public_id}: Status changed to {new_status}"
-        notif_desc = f"Your {req_type.replace('_', ' ').lower()} has been updated to '{new_status}'. {admin_note}"
+        effective_status = new_status or old_status
+
+        # Workflow specific notification messages
+        if req_type in ("HOSTEL_COMPLAINT", "FACILITY_COMPLAINT"):
+            if effective_status == "ASSIGNED" or (assigned_dept and not existing.get("assigned_department")):
+                notif_title = f"Your hostel complaint has been assigned."
+                notif_desc = f"Complaint {public_id}: Assigned to {assigned_dept or 'Maintenance'}. {admin_note}".strip()
+            elif effective_status == "IN_PROGRESS":
+                notif_title = f"Your complaint is now in progress."
+                notif_desc = f"Complaint {public_id}: Work has started on your complaint. {admin_note}".strip()
+            elif effective_status in ("RESOLVED", "CLOSED"):
+                notif_title = f"Your complaint has been resolved."
+                notif_desc = f"Complaint {public_id}: Resolved. {admin_note}".strip()
+            elif effective_status == "REJECTED":
+                notif_title = f"Your complaint was rejected."
+                notif_desc = f"Complaint {public_id}: {admin_note or 'Please contact administration.'}".strip()
+            else:
+                notif_title = f"{public_id}: Status changed to {effective_status}"
+                notif_desc = f"Your complaint has been updated to {effective_status}. {admin_note}".strip()
+
+        elif req_type == "CERTIFICATE_REQUEST":
+            if effective_status == "PROCESSING":
+                notif_title = f"Your bonafide certificate request is being processed."
+                notif_desc = f"Request {public_id}: Academic records under verification. {admin_note}".strip()
+            elif effective_status == "APPROVED":
+                notif_title = f"Your bonafide certificate request has been approved."
+                notif_desc = f"Request {public_id}: Approved by Registrar Office. {admin_note}".strip()
+            elif effective_status == "COMPLETED":
+                notif_title = f"Your bonafide certificate request was completed."
+                notif_desc = f"Request {public_id}: Ready for collection or digital download. {admin_note}".strip()
+            elif effective_status == "REJECTED":
+                notif_title = f"Your bonafide certificate request was rejected."
+                notif_desc = f"Request {public_id}: {admin_note or 'Application rejected by administration.'}".strip()
+            else:
+                notif_title = f"{public_id}: Status changed to {effective_status}"
+                notif_desc = f"Your certificate request has been updated. {admin_note}".strip()
+
+        else: # GATE_PASS or LEAVE_REQUEST
+            pass_label = "gate pass" if req_type == "GATE_PASS" else "leave"
+            if effective_status == "APPROVED":
+                notif_title = f"Your {pass_label} request has been approved."
+                notif_desc = f"Pass {public_id}: Approved by Warden. Digital pass active at gate. {admin_note}".strip()
+            elif effective_status == "REJECTED":
+                notif_title = f"Your {pass_label} request was rejected."
+                notif_desc = f"Pass {public_id}: {admin_note or 'Request was not approved by warden.'}".strip()
+            elif effective_status == "UNDER_REVIEW":
+                notif_title = f"Your {pass_label} request is under review."
+                notif_desc = f"Pass {public_id}: Verification in progress by warden. {admin_note}".strip()
+            else:
+                notif_title = f"{public_id}: Status changed to {effective_status}"
+                notif_desc = f"Your {pass_label} request has been updated. {admin_note}".strip()
+
         cur.execute("""
             INSERT INTO notifications (
                 id, student_id, title, description, category,
@@ -495,11 +633,18 @@ def update_campus_request(ident: str):
 def get_operations_stats():
     """
     Returns administrative operational KPIs:
-    - Counts by status (Pending, In Progress, Resolved, etc.)
-    - Counts by workflow type
-    - Average resolution time (hours)
-    - Complaint ageing metrics (>48 hours)
-    - Department workload distribution
+    - total
+    - pending
+    - in_progress
+    - approved
+    - resolved
+    - rejected
+    - unassigned
+    - aged_complaints (>48 hours)
+    - avg_resolution_hours
+    - by_type
+    - by_status
+    - department_workload
     """
     conn = get_db_connection()
     cur = conn.cursor()
@@ -511,7 +656,10 @@ def get_operations_stats():
     total = len(all_requests)
     pending_count = 0
     in_progress_count = 0
+    approved_count = 0
     resolved_count = 0
+    rejected_count = 0
+    unassigned_count = 0
     aged_count = 0
     resolution_times_hours = []
 
@@ -520,7 +668,7 @@ def get_operations_stats():
     status_counts = {}
 
     for r in all_requests:
-        status = r.get("status") or "SUBMITTED"
+        status = r.get("status") or "PENDING"
         req_type = r.get("request_type") or "OTHER"
         dept = r.get("assigned_department") or "Unassigned"
         
@@ -528,19 +676,29 @@ def get_operations_stats():
         type_counts[req_type] = type_counts.get(req_type, 0) + 1
         dept_workload[dept] = dept_workload.get(dept, 0) + 1
 
-        if status in ("SUBMITTED", "UNDER_REVIEW", "ASSIGNED"):
+        if not r.get("assigned_department") or r.get("assigned_department") in ("", "Unassigned"):
+            unassigned_count += 1
+
+        if status in ("PENDING", "SUBMITTED", "UNDER_REVIEW"):
             pending_count += 1
             # Check age
             age_info = calculate_time_diff_human(r.get("created_at") or "")
             if age_info["is_aged"]:
                 aged_count += 1
-        elif status in ("IN_PROGRESS", "PROCESSING"):
+        elif status in ("IN_PROGRESS", "PROCESSING", "ASSIGNED"):
             in_progress_count += 1
-        elif status in ("RESOLVED", "APPROVED", "COMPLETED", "CLOSED"):
+            age_info = calculate_time_diff_human(r.get("created_at") or "")
+            if age_info["is_aged"]:
+                aged_count += 1
+        elif status == "APPROVED":
+            approved_count += 1
+        elif status in ("RESOLVED", "COMPLETED", "CLOSED"):
             resolved_count += 1
             if r.get("resolved_at"):
                 res_info = calculate_time_diff_human(r.get("created_at") or "", r["resolved_at"])
                 resolution_times_hours.append(res_info["hours"])
+        elif status == "REJECTED":
+            rejected_count += 1
 
     avg_resolution_hours = 0.0
     if resolution_times_hours:
@@ -552,7 +710,10 @@ def get_operations_stats():
             "total": total,
             "pending": pending_count,
             "in_progress": in_progress_count,
+            "approved": approved_count,
             "resolved": resolved_count,
+            "rejected": rejected_count,
+            "unassigned": unassigned_count,
             "aged_complaints": aged_count,
             "avg_resolution_hours": avg_resolution_hours,
             "by_type": type_counts,
