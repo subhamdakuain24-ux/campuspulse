@@ -217,3 +217,70 @@ CREATE TABLE IF NOT EXISTS campus_request_activities (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 15. Mess Menu Table (Phase 4.3C)
+CREATE TABLE IF NOT EXISTS mess_menu (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day_of_week TEXT NOT NULL, -- 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    meal_type TEXT NOT NULL CHECK(meal_type IN ('BREAKFAST', 'LUNCH', 'SNACKS', 'DINNER')),
+    date TEXT, -- optional YYYY-MM-DD
+    items TEXT NOT NULL,
+    timings TEXT NOT NULL,
+    dietary_info TEXT DEFAULT 'Vegetarian', -- 'Vegetarian', 'Non-Vegetarian Options Available', 'Mixed'
+    special_note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 16. Mess Feedback Table (Phase 4.3C)
+CREATE TABLE IF NOT EXISTS mess_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    student_identifier TEXT NOT NULL,
+    meal_type TEXT DEFAULT 'GENERAL' CHECK(meal_type IN ('BREAKFAST', 'LUNCH', 'SNACKS', 'DINNER', 'GENERAL')),
+    rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+    category TEXT NOT NULL CHECK(category IN ('FOOD_QUALITY', 'TASTE', 'HYGIENE', 'QUANTITY', 'TIMING', 'SERVICE', 'OTHER')),
+    comments TEXT NOT NULL,
+    meal_date TEXT NOT NULL, -- YYYY-MM-DD
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 17. Student Groups Table (Phase 4.3D)
+CREATE TABLE IF NOT EXISTS student_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT NOT NULL,
+    group_name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(student_id, group_name)
+);
+
+-- 18. Targeted Campus Notifications (Phase 4.3D)
+CREATE TABLE IF NOT EXISTS targeted_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'campus', -- 'alerts' | 'exams' | 'academic' | 'campus' | 'hostel' | 'system'
+    badge_type TEXT NOT NULL DEFAULT 'campus', -- 'urgent' | 'assignment' | 'campus' | 'system' | 'general'
+    badge_label TEXT NOT NULL DEFAULT 'Notice',
+    target_type TEXT NOT NULL CHECK(target_type IN ('ALL', 'STUDENT', 'BRANCH', 'YEAR', 'BATCH', 'HOSTEL', 'GROUP')),
+    target_value TEXT,
+    action_button_text TEXT,
+    action_button_type TEXT DEFAULT 'primary',
+    created_by TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 19. Targeted Notification Read Status per Student (Phase 4.3D)
+CREATE TABLE IF NOT EXISTS notification_reads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    notification_id INTEGER NOT NULL REFERENCES targeted_notifications(id) ON DELETE CASCADE,
+    student_id TEXT NOT NULL,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(notification_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_targeted_notif_target ON targeted_notifications(target_type, target_value);
+CREATE INDEX IF NOT EXISTS idx_notif_reads_student ON notification_reads(student_id);
+CREATE INDEX IF NOT EXISTS idx_student_groups_student ON student_groups(student_id);
+
+

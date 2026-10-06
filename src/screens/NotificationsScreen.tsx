@@ -14,28 +14,38 @@ import {
   X,
   RotateCw,
   Server,
+  Send,
 } from 'lucide-react';
 import { initialNotifications } from '../data/mockData';
-import { NotificationItem, ScreenId } from '../types';
+import { NotificationItem, ScreenId, UserProfile } from '../types';
 import { api } from '../services/api';
+import { AdminTargetedNotifications } from '../components/AdminTargetedNotifications';
 
 interface NotificationsScreenProps {
+  user?: UserProfile;
   onNavigate?: (screen: ScreenId) => void;
 }
 
-export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavigate }) => {
+export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ user, onNavigate }) => {
+  const isAdmin = user?.role === 'Admin';
+  const isTeacher = user?.role === 'Teacher';
+  const isStaffOrAdmin = isAdmin || isTeacher;
+
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeDetailItem, setActiveDetailItem] = useState<NotificationItem | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLiveApi, setIsLiveApi] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [adminViewMode, setAdminViewMode] = useState<'feed' | 'dispatch'>('feed');
+
+  const activeStudentId = user?.studentId || '1';
 
   const fetchNotifications = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await api.getStudentNotifications('1');
+      const data = await api.getStudentNotifications(activeStudentId);
       setNotifications(data.notifications);
       setIsLiveApi(data.isLiveApi);
     } catch (err: any) {
@@ -49,14 +59,14 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavi
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+  }, [activeStudentId]);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   const handleMarkAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
     try {
-      await api.markAllNotificationsRead('1');
+      await api.markAllNotificationsRead(activeStudentId);
     } catch (err) {
       console.warn('[NotificationsScreen] Error marking all notifications read on backend:', err);
     }
@@ -67,7 +77,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavi
       prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
     );
     try {
-      await api.markNotificationRead('1', id);
+      await api.markNotificationRead(activeStudentId, id);
     } catch (err) {
       console.warn('[NotificationsScreen] Error marking notification read on backend:', err);
     }
@@ -97,19 +107,55 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavi
           </p>
         </div>
 
-        {unreadCount > 0 && (
-          <button
-            onClick={handleMarkAllRead}
-            className="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-blue-600 text-xs font-bold rounded-xl shadow-2xs transition-colors"
-          >
-            <CheckCheck className="w-4 h-4 text-blue-600" />
-            <span>Mark all as read</span>
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {isStaffOrAdmin && (
+            <div className="bg-slate-200/80 p-1 rounded-xl flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setAdminViewMode('feed')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  adminViewMode === 'feed'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Notifications Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdminViewMode('dispatch')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  adminViewMode === 'dispatch'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Send className="w-3.5 h-3.5" />
+                Targeted Dispatch
+              </button>
+            </div>
+          )}
+
+          {adminViewMode === 'feed' && unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              className="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-blue-600 text-xs font-bold rounded-xl shadow-2xs transition-colors"
+            >
+              <CheckCheck className="w-4 h-4 text-blue-600" />
+              <span>Mark all as read</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* 2-Column Layout (Page 8): Category Filters (Left) & Notification Feed (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Admin Targeted Dispatch Console View */}
+      {isStaffOrAdmin && adminViewMode === 'dispatch' && (
+        <AdminTargetedNotifications user={user!} onNotificationSent={fetchNotifications} />
+      )}
+
+      {/* Standard Notification Feed View */}
+      {adminViewMode === 'feed' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Category Menu (Page 8 Left) */}
         <div className="lg:col-span-3 bg-white rounded-2xl p-3 sm:p-4 border border-slate-100/90 shadow-xs space-y-1.5">
           <button
@@ -194,7 +240,35 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavi
 
         {/* Right Notification Feed (Page 8 Right) */}
         <div className="lg:col-span-9 space-y-3.5">
-          {filteredNotifications.map((item) => {
+          {isLoading ? (
+            <div className="p-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-100 shadow-2xs">
+              <RotateCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-500" />
+              <p className="text-xs font-semibold text-slate-600">Loading campus notifications...</p>
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center bg-rose-50 border border-rose-200 rounded-2xl text-rose-800">
+              <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
+              <p className="text-sm font-bold">Failed to load notifications</p>
+              <p className="text-xs text-rose-600 mt-1">{error}</p>
+              <button
+                onClick={fetchNotifications}
+                className="mt-3 px-4 py-2 bg-rose-600 text-white text-xs font-bold rounded-xl shadow-xs hover:bg-rose-700 cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          ) : filteredNotifications.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-2xl border border-slate-100 shadow-2xs text-slate-500">
+              <Bell className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm font-bold text-slate-800">No notifications found</p>
+              <p className="text-xs text-slate-400 mt-1">
+                {selectedCategory === 'all'
+                  ? 'All caught up! You have no notifications at this time.'
+                  : `No notifications in the "${selectedCategory}" category.`}
+              </p>
+            </div>
+          ) : (
+            filteredNotifications.map((item) => {
             const isUrgent = item.badgeType === 'urgent';
             const isAssignment = item.badgeType === 'assignment';
             const isCampus = item.badgeType === 'campus';
@@ -206,7 +280,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavi
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 onClick={() => handleMarkAsRead(item.id)}
-                className={`relative bg-white rounded-2xl p-5 sm:p-6 border shadow-2xs transition-all ${
+                className={`relative bg-white rounded-2xl p-5 sm:p-6 border shadow-2xs transition-all cursor-pointer ${
                   isUrgent
                     ? 'border-l-4 border-l-red-600 border-slate-100 bg-red-50/5'
                     : 'border-slate-100 hover:border-slate-200'
@@ -259,6 +333,11 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavi
                         {item.badgeLabel}
                       </span>
                       <span className="text-xs text-slate-400 font-medium">• {item.timeAgo}</span>
+                      {item.targetType && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          {item.targetType === 'ALL' ? 'All Campus' : `${item.targetType}: ${item.targetValue}`}
+                        </span>
+                      )}
                     </div>
 
                     {/* Title */}
@@ -273,7 +352,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavi
 
                     {/* Action Button if specified */}
                     {item.actionButtonText && (
-                      <div className="mt-4">
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -298,9 +377,11 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onNavi
                 </div>
               </motion.div>
             );
-          })}
+          })
+          )}
         </div>
       </div>
+      )}
 
       {/* Details Modal */}
       <AnimatePresence>

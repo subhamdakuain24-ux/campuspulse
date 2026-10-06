@@ -172,7 +172,7 @@ export default function App() {
                 />
               )}
               {currentScreen === 'notifications' && (
-                <NotificationsScreen onNavigate={handleNavigate} />
+                <NotificationsScreen user={user} onNavigate={handleNavigate} />
               )}
               {currentScreen === 'profile' && (
                 <ProfileScreen user={user} onUpdateUser={handleUpdateUser} />

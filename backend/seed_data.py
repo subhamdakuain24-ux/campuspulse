@@ -527,9 +527,190 @@ def seed_database(db_file=None):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, act)
 
+    # 14. Seed Mess Menu (Weekly Schedule Monday - Sunday across all 4 meals)
+    mess_menu_data = [
+        # Monday
+        (1, "Monday", "BREAKFAST", None, "Idli, Medu Vada, Coconut Chutney, Sambar, Bread Butter Jam, Tea / Coffee", "07:30 AM - 09:30 AM", "Vegetarian", "South Indian Special"),
+        (2, "Monday", "LUNCH", None, "Steamed Basmati Rice, Chapati, Dal Tadka, Paneer Butter Masala, Mixed Salad, Curd", "12:30 PM - 02:30 PM", "Vegetarian", None),
+        (3, "Monday", "SNACKS", None, "Vegetable Cutlet, Green Mint Chutney, Masala Chai, Biscuits", "05:00 PM - 06:15 PM", "Vegetarian", None),
+        (4, "Monday", "DINNER", None, "Jeera Rice, Phulka, Aloo Gobi Matar, Yellow Dal Fry, Gulab Jamun, Papad", "07:30 PM - 09:45 PM", "Vegetarian", "Sweet: Gulab Jamun"),
+        # Tuesday
+        (5, "Tuesday", "BREAKFAST", None, "Poha with Roasted Peanuts, Sev, Boiled Eggs / Banana, Tea / Coffee", "07:30 AM - 09:30 AM", "Mixed", "High Protein Options"),
+        (6, "Tuesday", "LUNCH", None, "Rajma Masala, Steamed Rice, Tandoori Roti, Boondi Raita, Roasted Papad, Salad", "12:30 PM - 02:30 PM", "Vegetarian", "North Indian Special"),
+        (7, "Tuesday", "SNACKS", None, "Crispy Samosa, Sweet Tamarind Chutney, Ginger Chai", "05:00 PM - 06:15 PM", "Vegetarian", None),
+        (8, "Tuesday", "DINNER", None, "Chicken Dum Biryani / Vegetable Dum Biryani, Mirchi Ka Salan, Onion Raita, Vanilla Ice Cream", "07:30 PM - 09:45 PM", "Mixed", "Special Dinner Feast"),
+        # Wednesday
+        (9, "Wednesday", "BREAKFAST", None, "Crispy Masala Dosa, Potato Masala, Sambar, Coconut & Tomato Chutney, Filter Coffee", "07:30 AM - 09:30 AM", "Vegetarian", "Chef Special Dosa"),
+        (10, "Wednesday", "LUNCH", None, "Peas Pulao, Whole Wheat Chapati, Chana Masala, Dal Makhani, Fresh Cucumber Salad", "12:30 PM - 02:30 PM", "Vegetarian", None),
+        (11, "Wednesday", "SNACKS", None, "Bread Pakora with Potato stuffing, Tomato Ketchup, Filter Coffee / Tea", "05:00 PM - 06:15 PM", "Vegetarian", None),
+        (12, "Wednesday", "DINNER", None, "Veg Fried Rice, Vegetable Manchurian Gravy / Egg Curry, Clear Sweetcorn Soup", "07:30 PM - 09:45 PM", "Mixed", "Indo-Chinese Night"),
+        # Thursday
+        (13, "Thursday", "BREAKFAST", None, "Aloo Paratha, Fresh White Butter, Mint Curd Raita, Mixed Mango Pickle, Masala Tea", "07:30 AM - 09:30 AM", "Vegetarian", "Punjabi Breakfast"),
+        (14, "Thursday", "LUNCH", None, "Punjabi Kadhi Pakora, Steamed White Rice, Soft Phulka, Bhindi Do Pyaza, Roasted Papad", "12:30 PM - 02:30 PM", "Vegetarian", None),
+        (15, "Thursday", "SNACKS", None, "Sweet Corn Chaat with Butter & Herbs, Fresh Lemon Soda, Tea", "05:00 PM - 06:15 PM", "Vegetarian", "Healthy Snacks"),
+        (16, "Thursday", "DINNER", None, "Butter Naan, Shahi Paneer, Dal Fry, Jeera Rice, Rasgulla", "07:30 PM - 09:45 PM", "Vegetarian", "Sweet: Rasgulla"),
+        # Friday
+        (17, "Friday", "BREAKFAST", None, "Rava Upma, Coconut Chutney, Kesari Bath (Sheera), Boiled Sprouts, Tea / Coffee", "07:30 AM - 09:30 AM", "Vegetarian", None),
+        (18, "Friday", "LUNCH", None, "Lemon Rice, Curd Rice, Crispy Potato Roast, Traditional Sambar, Appalam", "12:30 PM - 02:30 PM", "Vegetarian", "South Indian Thali"),
+        (19, "Friday", "SNACKS", None, "Pav Bhaji with Buttered Pav, Sliced Onions & Lemon, Masala Chai", "05:00 PM - 06:15 PM", "Vegetarian", "Street Food Special"),
+        (20, "Friday", "DINNER", None, "Kashmiri Pulao, Chapati, Malai Kofta / Butter Chicken, Moong Dal Halwa", "07:30 PM - 09:45 PM", "Mixed", "Deluxe Friday Meal"),
+        # Saturday
+        (21, "Saturday", "BREAKFAST", None, "Puri Bhaji (Spicy Potato Gravy), Sooji Halwa, Fresh Banana, Tea / Coffee", "07:30 AM - 09:30 AM", "Vegetarian", "Weekend Special"),
+        (22, "Saturday", "LUNCH", None, "Moong Dal Khichdi with Desi Ghee, Gujarati Kadhi, Begun Bhaja, Fried Papad, Achar", "12:30 PM - 02:30 PM", "Vegetarian", "Comfort Meal"),
+        (23, "Saturday", "SNACKS", None, "Bhel Puri with Sev, Mint Cooler Drink, Biscuits", "05:00 PM - 06:15 PM", "Vegetarian", None),
+        (24, "Saturday", "DINNER", None, "Veg Hakka Noodles, Chili Paneer / Chili Chicken, Hot & Sour Soup", "07:30 PM - 09:45 PM", "Mixed", "Weekend Specials"),
+        # Sunday
+        (25, "Sunday", "BREAKFAST", None, "Chole Bhature with Pickled Onions, Sweet Lassi / Masala Chai", "08:00 AM - 10:00 AM", "Vegetarian", "Sunday Brunch (Late Timings)"),
+        (26, "Sunday", "LUNCH", None, "Special Hyderabadi Dum Biryani (Veg/Chicken), Bagara Baingan, Raita, Double Ka Meetha", "12:30 PM - 02:30 PM", "Mixed", "Grand Sunday Lunch"),
+        (27, "Sunday", "SNACKS", None, "Crispy Onion Pakora, Green Chutney, Cardamom Chai", "05:00 PM - 06:15 PM", "Vegetarian", None),
+        (28, "Sunday", "DINNER", None, "Light Khichdi / Phulkas with Mix Veg Kurma, Yellow Moong Dal, Fresh Fruit Custard", "07:30 PM - 09:45 PM", "Vegetarian", "Light Dinner")
+    ]
+
+    for m in mess_menu_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO mess_menu (
+                id, day_of_week, meal_type, date, items, timings, dietary_info, special_note
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, m)
+
+    # 15. Seed Mess Feedback (Real Student Feedback Records)
+    mess_feedback_data = [
+        (
+            1, "1", "Alex Johnson", "CP-847291", "BREAKFAST", 5, "TASTE",
+            "Masala dosa was exceptionally crisp today and the coconut chutney was very fresh. Great job!",
+            "2026-10-04", "2026-10-04 09:15:00"
+        ),
+        (
+            2, "1", "Alex Johnson", "CP-847291", "LUNCH", 2, "HYGIENE",
+            "Water glasses at Table 4 in West Wing dining hall had water spots and detergent residue. Please ensure thorough rinsing.",
+            "2026-10-03", "2026-10-03 14:10:00"
+        ),
+        (
+            3, "2", "Jane Smith", "CP-992211", "DINNER", 4, "FOOD_QUALITY",
+            "Paneer Butter Masala was rich and tasty. Naan was hot and fresh.",
+            "2026-10-04", "2026-10-04 20:30:00"
+        ),
+        (
+            4, "2", "Jane Smith", "CP-992211", "SNACKS", 2, "QUANTITY",
+            "Samosas ran out by 5:40 PM, several students in Block B didn't get any before tea was closed.",
+            "2026-10-02", "2026-10-02 18:00:00"
+        ),
+        (
+            5, "STU-2023-8941", "Alex Johnson", "CP-847291", "LUNCH", 2, "HYGIENE",
+            "Hand sanitizing dispenser near handwash area was empty during peak lunch rush.",
+            "2026-10-02", "2026-10-02 13:45:00"
+        ),
+        (
+            6, "STU-2023-8941", "Alex Johnson", "CP-847291", "DINNER", 3, "TIMING",
+            "Dinner service started 15 minutes late around 7:45 PM causing a long queue outside.",
+            "2026-10-01", "2026-10-01 20:15:00"
+        )
+    ]
+
+    for fb in mess_feedback_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO mess_feedback (
+                id, student_id, student_name, student_identifier, meal_type,
+                rating, category, comments, meal_date, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, fb)
+
+    # 16. Seed Student Groups (Phase 4.3D)
+    groups_data = [
+        ("1", "Coding Club"),
+        ("1", "Hostel Council"),
+        ("STU-2023-8941", "Coding Club"),
+        ("STU-2023-8941", "Hostel Council"),
+        ("2", "Robotics Society"),
+        ("2", "Cultural Committee"),
+    ]
+    for g in groups_data:
+        cur.execute("""
+            INSERT OR IGNORE INTO student_groups (student_id, group_name)
+            VALUES (?, ?)
+        """, g)
+
+    # 17. Seed Targeted Notifications (Phase 4.3D)
+    targeted_notifications_data = [
+        (
+            1,
+            "Annual Campus TechPulse 2026 Registration Open",
+            "Registrations are now open for all university students to submit hardware and software projects for the annual symposium.",
+            "campus",
+            "campus",
+            "ALL CAMPUS",
+            "ALL",
+            None,
+            "Register Project",
+            "primary",
+            "Admin Carter (Campus Operations)"
+        ),
+        (
+            2,
+            "ACM ICPC Regional Prelims Coaching for Computer Science",
+            "Department of Computing has organized weekly competitive programming rounds in Turing Lab for CSE students.",
+            "academic",
+            "assignment",
+            "CSE DEPT",
+            "BRANCH",
+            "Computer Science",
+            "View Schedule",
+            "primary",
+            "Prof. Sarah Jenkins"
+        ),
+        (
+            3,
+            "Pre-Placement Internship Briefing for 3rd Year Students",
+            "Mandatory briefing on summer corporate internships and resume verification in Main Auditorium.",
+            "alerts",
+            "urgent",
+            "3RD YEAR",
+            "YEAR",
+            "3",
+            "Confirm Attendance",
+            "danger",
+            "Dean of Student Affairs"
+        ),
+        (
+            4,
+            "Scheduled Water Tank Maintenance - Oak Ridge Hall",
+            "Overhead water tank sterilization scheduled tomorrow from 10:00 AM to 12:00 PM for Oak Ridge Residence Hall.",
+            "campus",
+            "campus",
+            "OAK RIDGE",
+            "HOSTEL",
+            "Oak Ridge",
+            "Hostel Info",
+            "primary",
+            "Warden Michael Chang"
+        ),
+        (
+            5,
+            "Autonomous Drone Hackathon for Robotics Society",
+            "Exclusive parts kit distribution for registered Robotics Society members in Engineering Workshop 2.",
+            "academic",
+            "assignment",
+            "ROBOTICS",
+            "GROUP",
+            "Robotics Society",
+            "Collect Kit",
+            "primary",
+            "Faculty Advisor"
+        )
+    ]
+    for tn in targeted_notifications_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO targeted_notifications (
+                id, title, description, category, badge_type, badge_label,
+                target_type, target_value, action_button_text, action_button_type,
+                created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, tn)
+
     conn.commit()
     conn.close()
-    print("[Database] Fictional development data (Student, Teacher, Admin, Campus Requests) successfully seeded into SQLite!")
+    print("[Database] Fictional development data (Student, Teacher, Admin, Campus Requests, Mess Menu & Feedback, Targeted Notifications) successfully seeded into SQLite!")
+
 
 
 if __name__ == "__main__":

@@ -9,5 +9,8 @@ python3 -c "import socket; s = socket.socket(); err = s.connect_ex(('127.0.0.1',
     sleep 0.8
 }
 
+# Ensure node_modules/.bin is in PATH for vite
+export PATH="./node_modules/.bin:$PATH"
+
 # Launch Vite Dev Server on port 3000
 exec vite --port=3000 --host=0.0.0.0 "$@"

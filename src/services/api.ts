@@ -11,8 +11,18 @@ import {
   CampusRequest,
   CampusRequestActivity,
   CampusOperationsStats,
+  StaffWorkloadItem,
+  DepartmentWorkloadItem,
+  RecurringProblemItem,
   CreateRequestPayload,
   UpdateRequestPayload,
+  MessMenuItem,
+  MessFeedbackItem,
+  MessFeedbackStats,
+  CreateMessFeedbackPayload,
+  CreateMessMenuItemPayload,
+  CreateTargetedNotificationPayload,
+  TargetedNotificationRecord,
 } from '../types';
 import {
   initialUserProfile,
@@ -493,6 +503,9 @@ export function mapBackendNotifications(items: BackendNotificationItem[]): Notif
       unread: Boolean(n.unread),
       actionButtonText: n.action_button_text || undefined,
       actionButtonType: n.action_button_text ? actionButtonType : undefined,
+      targetType: (n as any).target_type || undefined,
+      targetValue: (n as any).target_value || undefined,
+      createdBy: (n as any).created_by || undefined,
     };
   });
 }
@@ -1028,7 +1041,7 @@ class ApiService {
 
       return {
         unreadCount,
-        notifications: mapped.length > 0 ? mapped : initialNotifications,
+        notifications: mapped,
         rawNotifications: res.notifications || [],
         isLiveApi: true,
       };
@@ -1229,7 +1242,7 @@ class ApiService {
   }
 
   /**
-   * Get Campus Operations KPI metrics & stats
+   * Get Campus Operations KPI metrics & stats (including Phase 4.3B analytics)
    */
   async getCampusOperationsStats(): Promise<CampusOperationsStats | null> {
     try {
@@ -1240,6 +1253,47 @@ class ApiService {
     } catch (err) {
       console.warn('[ApiService] Failed to fetch operations stats:', err);
       return null;
+    }
+  }
+
+  /**
+   * Get Staff & Department Workload Analytics (Phase 4.3B)
+   */
+  async getOperationsWorkload(): Promise<{
+    staff_workload: StaffWorkloadItem[];
+    unassigned_staff: Array<{ staff_name: string; department: string; status: string }>;
+    unassigned_requests_count: number;
+    department_workload: DepartmentWorkloadItem[];
+  } | null> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        staff_workload: StaffWorkloadItem[];
+        unassigned_staff: Array<{ staff_name: string; department: string; status: string }>;
+        unassigned_requests_count: number;
+        department_workload: DepartmentWorkloadItem[];
+      }>('/operations/workload');
+      return res;
+    } catch (err) {
+      console.warn('[ApiService] Failed to fetch operations workload:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Get Repeated Campus Operations Problems (Phase 4.3B Deterministic Aggregation)
+   */
+  async getRecurringProblems(): Promise<RecurringProblemItem[]> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        count: number;
+        recurring_problems: RecurringProblemItem[];
+      }>('/operations/recurring-problems');
+      return res.recurring_problems || [];
+    } catch (err) {
+      console.warn('[ApiService] Failed to fetch recurring problems:', err);
+      return [];
     }
   }
 
@@ -1261,6 +1315,335 @@ class ApiService {
     } catch (err) {
       console.warn('[ApiService] Failed to fetch audit logs:', err);
       return [];
+    }
+  }
+
+  // ==========================================
+  // Phase 4.3C — Mess Menu & Feedback Methods
+  // ==========================================
+
+  /**
+   * Get Mess Menu with optional filters (day, date, meal_type)
+   */
+  async getMessMenu(filters?: {
+    day?: string;
+    date?: string;
+    meal_type?: string;
+  }): Promise<{ menu: MessMenuItem[]; grouped_by_day: Record<string, MessMenuItem[]> }> {
+    try {
+      const q = new URLSearchParams();
+      if (filters?.day) q.set('day', filters.day);
+      if (filters?.date) q.set('date', filters.date);
+      if (filters?.meal_type) q.set('meal_type', filters.meal_type);
+      const qs = q.toString() ? `?${q.toString()}` : '';
+      const res = await this.fetchJson<{
+        success: boolean;
+        count: number;
+        menu: MessMenuItem[];
+        grouped_by_day: Record<string, MessMenuItem[]>;
+      }>(`/operations/mess/menu${qs}`);
+      return {
+        menu: res.menu || [],
+        grouped_by_day: res.grouped_by_day || {},
+      };
+    } catch (err) {
+      console.warn('[ApiService] Failed to fetch mess menu:', err);
+      return { menu: [], grouped_by_day: {} };
+    }
+  }
+
+  /**
+   * Create Mess Menu Item (Admin/Staff only)
+   */
+  async createMessMenuItem(
+    payload: CreateMessMenuItemPayload
+  ): Promise<{ success: boolean; message?: string; item?: MessMenuItem; error?: string }> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        message: string;
+        item: MessMenuItem;
+      }>('/operations/mess/menu', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      return {
+        success: res.success,
+        message: res.message,
+        item: res.item,
+      };
+    } catch (err: any) {
+      console.warn('[ApiService] Failed to create mess menu item:', err);
+      return {
+        success: false,
+        error: err?.message || 'Failed to create menu entry',
+      };
+    }
+  }
+
+  /**
+   * Update Mess Menu Item (Admin/Staff only)
+   */
+  async updateMessMenuItem(
+    id: number,
+    payload: Partial<CreateMessMenuItemPayload>
+  ): Promise<{ success: boolean; message?: string; item?: MessMenuItem; error?: string }> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        message: string;
+        item: MessMenuItem;
+      }>(`/operations/mess/menu/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      return {
+        success: res.success,
+        message: res.message,
+        item: res.item,
+      };
+    } catch (err: any) {
+      console.warn(`[ApiService] Failed to update menu item ${id}:`, err);
+      return {
+        success: false,
+        error: err?.message || 'Failed to update menu entry',
+      };
+    }
+  }
+
+  /**
+   * Delete Mess Menu Item (Admin/Staff only)
+   */
+  async deleteMessMenuItem(id: number): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const res = await this.fetchJson<{ success: boolean; message: string }>(
+        `/operations/mess/menu/${id}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      return { success: res.success, message: res.message };
+    } catch (err: any) {
+      console.warn(`[ApiService] Failed to delete menu item ${id}:`, err);
+      return {
+        success: false,
+        error: err?.message || 'Failed to delete menu entry',
+      };
+    }
+  }
+
+  /**
+   * Get Mess Feedback records and summary statistics
+   */
+  async getMessFeedback(filters?: {
+    category?: string;
+    rating?: number | string;
+    meal_type?: string;
+    date?: string;
+    search?: string;
+  }): Promise<{ feedback: MessFeedbackItem[]; stats: MessFeedbackStats | null }> {
+    try {
+      const q = new URLSearchParams();
+      if (filters?.category && filters.category !== 'ALL') q.set('category', filters.category);
+      if (filters?.rating && filters.rating !== 'ALL') q.set('rating', filters.rating.toString());
+      if (filters?.meal_type && filters.meal_type !== 'ALL') q.set('meal_type', filters.meal_type);
+      if (filters?.date) q.set('date', filters.date);
+      if (filters?.search) q.set('search', filters.search);
+      const qs = q.toString() ? `?${q.toString()}` : '';
+
+      const res = await this.fetchJson<{
+        success: boolean;
+        count: number;
+        feedback: MessFeedbackItem[];
+        stats?: MessFeedbackStats | null;
+      }>(`/operations/mess/feedback${qs}`);
+      return {
+        feedback: res.feedback || [],
+        stats: res.stats || null,
+      };
+    } catch (err) {
+      console.warn('[ApiService] Failed to fetch mess feedback:', err);
+      return { feedback: [], stats: null };
+    }
+  }
+
+  /**
+   * Submit Mess Feedback (Student & Authenticated Users)
+   */
+  async submitMessFeedback(
+    payload: CreateMessFeedbackPayload
+  ): Promise<{ success: boolean; message?: string; feedback?: MessFeedbackItem; error?: string }> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        message: string;
+        feedback: MessFeedbackItem;
+      }>('/operations/mess/feedback', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      return {
+        success: res.success,
+        message: res.message,
+        feedback: res.feedback,
+      };
+    } catch (err: any) {
+      console.warn('[ApiService] Failed to submit mess feedback:', err);
+      return {
+        success: false,
+        error: err?.message || 'Failed to submit feedback',
+      };
+    }
+  }
+
+  /**
+   * Delete Mess Feedback (Student can delete own, Admin can delete any)
+   */
+  async deleteMessFeedback(id: number): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const res = await this.fetchJson<{ success: boolean; message: string }>(
+        `/operations/mess/feedback/${id}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      return { success: res.success, message: res.message };
+    } catch (err: any) {
+      console.warn(`[ApiService] Failed to delete feedback ${id}:`, err);
+      return {
+        success: false,
+        error: err?.message || 'Failed to delete feedback entry',
+      };
+    }
+  }
+
+  // ==========================================
+  // Phase 4.3D Targeted Notifications API
+  // ==========================================
+
+  /**
+   * Dispatch a new targeted notification (Admin / Authorized personnel)
+   */
+  async createTargetedNotification(
+    payload: CreateTargetedNotificationPayload
+  ): Promise<{ success: boolean; message?: string; notification?: TargetedNotificationRecord; error?: string }> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        message: string;
+        notification: TargetedNotificationRecord;
+      }>('/notifications/targeted', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      return {
+        success: res.success,
+        message: res.message,
+        notification: res.notification,
+      };
+    } catch (err: any) {
+      console.warn('[ApiService] Failed to create targeted notification:', err);
+      return {
+        success: false,
+        error: err?.message || 'Failed to create targeted notification',
+      };
+    }
+  }
+
+  /**
+   * Fetch all targeted notifications dispatched with audience stats (Admin)
+   */
+  async getTargetedNotifications(): Promise<{
+    success: boolean;
+    notifications: TargetedNotificationRecord[];
+    count: number;
+    error?: string;
+  }> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        count: number;
+        notifications: TargetedNotificationRecord[];
+      }>('/notifications/targeted');
+      return {
+        success: res.success,
+        count: res.count,
+        notifications: res.notifications || [],
+      };
+    } catch (err: any) {
+      console.warn('[ApiService] Failed to fetch targeted notifications:', err);
+      return {
+        success: false,
+        count: 0,
+        notifications: [],
+        error: err?.message || 'Failed to fetch targeted notifications',
+      };
+    }
+  }
+
+  /**
+   * Delete a targeted notification entry
+   */
+  async deleteTargetedNotification(id: number): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const res = await this.fetchJson<{ success: boolean; message: string }>(
+        `/notifications/targeted/${id}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      return { success: res.success, message: res.message };
+    } catch (err: any) {
+      console.warn(`[ApiService] Failed to delete targeted notification ${id}:`, err);
+      return {
+        success: false,
+        error: err?.message || 'Failed to delete targeted notification',
+      };
+    }
+  }
+
+  /**
+   * Fetch targeting criteria options for compose UI
+   */
+  async getTargetingOptions(): Promise<{
+    branches: string[];
+    years: string[];
+    batches: string[];
+    hostels: string[];
+    groups: string[];
+    students: Array<{ id: string; student_id: string; name: string; program: string }>;
+  }> {
+    try {
+      const res = await this.fetchJson<{
+        success: boolean;
+        options: {
+          branches: string[];
+          years: string[];
+          batches: string[];
+          hostels: string[];
+          groups: string[];
+          students: Array<{ id: string; student_id: string; name: string; program: string }>;
+        };
+      }>('/notifications/targeting-options');
+      return res.options;
+    } catch (err: any) {
+      console.warn('[ApiService] Failed to fetch targeting options, using defaults:', err);
+      return {
+        branches: [
+          'Computer Science & Engineering',
+          'Electrical & Electronics Engineering',
+          'Mechanical Engineering',
+          'Civil Engineering',
+        ],
+        years: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
+        batches: ['2021-2025', '2022-2026', '2023-2027', '2024-2028'],
+        hostels: ['Oak Ridge Residence Hall', 'Maple Hall', 'Block C', 'North Campus Hostel'],
+        groups: ['Coding Club', 'Hostel Council', 'Robotics Society', 'Cultural Committee', 'Sports Council'],
+        students: [
+          { id: '1', student_id: 'CP-847291', name: 'Alex Johnson', program: 'Computer Science' },
+          { id: '2', student_id: 'CP-992211', name: 'Jane Smith', program: 'Electrical Engineering' },
+        ],
+      };
     }
   }
 }

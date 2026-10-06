@@ -33,12 +33,28 @@ import {
   CheckCheck,
   Shield,
   Layers,
+  Users,
+  BarChart3,
+  Flame,
+  Activity,
+  UserCheck,
+  UserX,
+  Briefcase,
+  AlertCircle,
+  ExternalLink,
+  UtensilsCrossed,
+  Bell,
 } from 'lucide-react';
+import { MessOperations } from '../components/MessOperations';
+import { AdminTargetedNotifications } from '../components/AdminTargetedNotifications';
 import {
   CampusRequest,
   CampusRequestType,
   CampusPriority,
   CampusOperationsStats,
+  StaffWorkloadItem,
+  DepartmentWorkloadItem,
+  RecurringProblemItem,
   UserProfile,
   CreateRequestPayload,
 } from '../types';
@@ -78,7 +94,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
   const isTeacher = user.role === 'Teacher';
   const isStaffOrAdmin = isAdmin || isTeacher;
 
-  const [activeTab, setActiveTab] = useState<'all' | 'complaints' | 'certificates' | 'passes' | 'stats'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'complaints' | 'certificates' | 'passes' | 'mess' | 'stats' | 'broadcasts'>('all');
   const [requests, setRequests] = useState<CampusRequest[]>([]);
   const [stats, setStats] = useState<CampusOperationsStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,6 +110,11 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
   const [staffFilter, setStaffFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'ageing'>('newest');
 
+  // Phase 4.3B Admin Workload & Intelligence Subtab States
+  const [workloadSubTab, setWorkloadSubTab] = useState<'overview' | 'staff' | 'departments' | 'recurring'>('overview');
+  const [staffSearchQuery, setStaffSearchQuery] = useState('');
+  const [staffStatusFilter, setStaffStatusFilter] = useState<'ALL' | 'OVERLOADED' | 'BUSY' | 'AVAILABLE'>('ALL');
+
   // Dynamically computed list of staff members from current requests and defaults
   const staffList = useMemo(() => {
     const set = new Set<string>();
@@ -105,6 +126,53 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
     ['Tech. Ramesh Kumar', 'Officer Marcus Vance', 'Elena Rostova (Registrar)', 'Warden Michael Chang'].forEach((s) => set.add(s));
     return Array.from(set).sort();
   }, [requests]);
+
+  // Filtered staff workload for search and status filters
+  const filteredStaffWorkload = useMemo(() => {
+    if (!stats?.staff_workload) return [];
+    return stats.staff_workload.filter((s: StaffWorkloadItem) => {
+      if (staffStatusFilter !== 'ALL' && s.status !== staffStatusFilter) return false;
+      if (staffSearchQuery.trim()) {
+        const q = staffSearchQuery.toLowerCase();
+        const matchName = s.staff_name.toLowerCase().includes(q);
+        const matchDept = (s.department || '').toLowerCase().includes(q);
+        if (!matchName && !matchDept) return false;
+      }
+      return true;
+    });
+  }, [stats?.staff_workload, staffStatusFilter, staffSearchQuery]);
+
+  // Needs Attention Queue for Admin (Phase 4.3A)
+  // Deterministic prioritization: unassigned department, long pending (>24h), long in-progress (>48h), urgent priority ageing (>12h)
+  const attentionRequests = useMemo(() => {
+    if (!isStaffOrAdmin) return [];
+    return requests
+      .filter((r) => {
+        const isResolved = ['RESOLVED', 'APPROVED', 'COMPLETED', 'CLOSED', 'REJECTED'].includes(r.status);
+        if (isResolved) return false;
+        const isUnassigned = !r.assigned_department || r.assigned_department === 'Unassigned' || r.assigned_department.trim() === '';
+        const isLongPending = ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(r.status) && (r.age?.hours >= 24.0 || r.age?.is_aged);
+        const isLongInProgress = ['IN_PROGRESS', 'PROCESSING'].includes(r.status) && (r.age?.hours >= 48.0 || r.age?.is_aged);
+        const isUrgentAgeing = (r.priority === 'URGENT' || r.priority === 'HIGH') && (r.age?.hours >= 12.0);
+        return isUnassigned || isLongPending || isLongInProgress || isUrgentAgeing;
+      })
+      .map((r) => {
+        const isUnassigned = !r.assigned_department || r.assigned_department === 'Unassigned' || r.assigned_department.trim() === '';
+        const isLongPending = ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(r.status) && (r.age?.hours >= 24.0 || r.age?.is_aged);
+        const isLongInProgress = ['IN_PROGRESS', 'PROCESSING'].includes(r.status) && (r.age?.hours >= 48.0 || r.age?.is_aged);
+        const isUrgent = r.priority === 'URGENT' || r.priority === 'HIGH';
+
+        let reason = 'Review Needed';
+        if (isUnassigned && isUrgent) reason = 'Unassigned • High Priority';
+        else if (isUnassigned) reason = 'Unassigned';
+        else if (isLongPending) reason = 'Pending > 24h';
+        else if (isLongInProgress) reason = 'In Progress > 48h';
+        else if (isUrgent) reason = `${r.priority} Priority`;
+
+        return { request: r, reason };
+      })
+      .slice(0, 6);
+  }, [requests, isStaffOrAdmin]);
 
   // Success Banner State
   const [submissionSuccess, setSubmissionSuccess] = useState<{
@@ -156,7 +224,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
     try {
       const [reqList, statsData] = await Promise.all([
         api.getCampusRequests({ sort: sortBy }),
-        api.getCampusOperationsStats(),
+        isStaffOrAdmin ? api.getCampusOperationsStats() : Promise.resolve(null),
       ]);
       setRequests(reqList);
       setStats(statsData);
@@ -226,10 +294,12 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
         const matchTitle = r.title.toLowerCase().includes(q);
         const matchDesc = r.description.toLowerCase().includes(q);
         const matchId = r.public_id.toLowerCase().includes(q);
+        const matchCategory = (r.category || '').toLowerCase().includes(q);
         const matchLoc = (r.location || '').toLowerCase().includes(q);
-        const matchStudent = (r.student_name || '').toLowerCase().includes(q);
+        const matchStudent = (r.student_name || '').toLowerCase().includes(q) || (r.student_identifier || '').toLowerCase().includes(q);
         const matchStaff = (r.assigned_staff || '').toLowerCase().includes(q);
-        if (!matchTitle && !matchDesc && !matchId && !matchLoc && !matchStudent && !matchStaff) return false;
+        const matchDept = (r.assigned_department || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchDesc && !matchId && !matchCategory && !matchLoc && !matchStudent && !matchStaff && !matchDept) return false;
       }
 
       return true;
@@ -547,7 +617,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
 
         {/* Quick Workflow Action Shortcuts for Students */}
         {!isStaffOrAdmin && (
-          <div className="mt-6 pt-6 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="mt-6 pt-6 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <button
               onClick={() => {
                 resetForm();
@@ -623,6 +693,21 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                 <p className="text-[11px] text-slate-400">Weekend outing or hackathon leave</p>
               </div>
             </button>
+
+            <button
+              onClick={() => setActiveTab('mess')}
+              className="flex items-center gap-3 p-3 rounded-2xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 text-left transition-all group cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-400 flex items-center justify-center shrink-0 border border-orange-500/20 group-hover:scale-105 transition-transform">
+                <UtensilsCrossed className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white group-hover:text-orange-300 transition-colors">
+                  Mess & Dining
+                </p>
+                <p className="text-[11px] text-slate-400">Weekly menu & meal reviews</p>
+              </div>
+            </button>
           </div>
         )}
       </div>
@@ -695,64 +780,332 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
         </div>
       )}
 
-      {/* Summary KPI Cards (For Admin: 7 Required Summary Metrics) */}
+      {/* Summary KPI Cards (For Admin: 7 Required Summary Metrics - Click to Filter) */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-          <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Total</span>
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter('ALL');
+              setDeptFilter('ALL');
+              setTypeFilter('ALL');
+              setStaffFilter('ALL');
+            }}
+            className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+              statusFilter === 'ALL' && deptFilter === 'ALL' && typeFilter === 'ALL' && staffFilter === 'ALL'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900/20'
+                : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-xs'
+            }`}
+          >
+            <span
+              className={`text-[11px] font-semibold uppercase tracking-wider block ${
+                statusFilter === 'ALL' && deptFilter === 'ALL' && typeFilter === 'ALL' && staffFilter === 'ALL'
+                  ? 'text-slate-300'
+                  : 'text-slate-500'
+              }`}
+            >
+              Total
+            </span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-xl sm:text-2xl font-bold text-slate-900">{stats.total}</span>
-              <span className="text-[10px] text-slate-400">All</span>
+              <span
+                className={`text-xl sm:text-2xl font-bold ${
+                  statusFilter === 'ALL' && deptFilter === 'ALL' && typeFilter === 'ALL' && staffFilter === 'ALL'
+                    ? 'text-white'
+                    : 'text-slate-900'
+                }`}
+              >
+                {stats.total}
+              </span>
+              <span
+                className={`text-[10px] ${
+                  statusFilter === 'ALL' && deptFilter === 'ALL' && typeFilter === 'ALL' && staffFilter === 'ALL'
+                    ? 'text-slate-400'
+                    : 'text-slate-400'
+                }`}
+              >
+                All
+              </span>
             </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'PENDING' ? 'ALL' : 'PENDING')}
+            className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+              statusFilter === 'PENDING'
+                ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-600/30'
+                : 'bg-gradient-to-br from-amber-50/40 to-white border-amber-200/80 hover:border-amber-300 shadow-xs'
+            }`}
+          >
+            <span
+              className={`text-[11px] font-semibold uppercase tracking-wider block ${
+                statusFilter === 'PENDING' ? 'text-amber-100' : 'text-amber-700'
+              }`}
+            >
+              Pending
+            </span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span
+                className={`text-xl sm:text-2xl font-bold ${
+                  statusFilter === 'PENDING' ? 'text-white' : 'text-amber-600'
+                }`}
+              >
+                {stats.pending}
+              </span>
+              <span
+                className={`text-[10px] ${
+                  statusFilter === 'PENDING' ? 'text-amber-200' : 'text-amber-600/80'
+                }`}
+              >
+                Action
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'IN_PROGRESS' ? 'ALL' : 'IN_PROGRESS')}
+            className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+              statusFilter === 'IN_PROGRESS'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-600/30'
+                : 'bg-gradient-to-br from-indigo-50/40 to-white border-indigo-200/80 hover:border-indigo-300 shadow-xs'
+            }`}
+          >
+            <span
+              className={`text-[11px] font-semibold uppercase tracking-wider block ${
+                statusFilter === 'IN_PROGRESS' ? 'text-indigo-100' : 'text-indigo-700'
+              }`}
+            >
+              In Progress
+            </span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span
+                className={`text-xl sm:text-2xl font-bold ${
+                  statusFilter === 'IN_PROGRESS' ? 'text-white' : 'text-indigo-600'
+                }`}
+              >
+                {stats.in_progress}
+              </span>
+              <span
+                className={`text-[10px] ${
+                  statusFilter === 'IN_PROGRESS' ? 'text-indigo-200' : 'text-indigo-600/80'
+                }`}
+              >
+                Active
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'APPROVED' ? 'ALL' : 'APPROVED')}
+            className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+              statusFilter === 'APPROVED'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-600/30'
+                : 'bg-gradient-to-br from-emerald-50/40 to-white border-emerald-200/80 hover:border-emerald-300 shadow-xs'
+            }`}
+          >
+            <span
+              className={`text-[11px] font-semibold uppercase tracking-wider block ${
+                statusFilter === 'APPROVED' ? 'text-emerald-100' : 'text-emerald-700'
+              }`}
+            >
+              Approved
+            </span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span
+                className={`text-xl sm:text-2xl font-bold ${
+                  statusFilter === 'APPROVED' ? 'text-white' : 'text-emerald-600'
+                }`}
+              >
+                {stats.approved}
+              </span>
+              <span
+                className={`text-[10px] ${
+                  statusFilter === 'APPROVED' ? 'text-emerald-200' : 'text-emerald-600/80'
+                }`}
+              >
+                Passes
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'RESOLVED' ? 'ALL' : 'RESOLVED')}
+            className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+              statusFilter === 'RESOLVED'
+                ? 'bg-teal-600 text-white border-teal-600 shadow-md ring-2 ring-teal-600/30'
+                : 'bg-gradient-to-br from-teal-50/40 to-white border-teal-200/80 hover:border-teal-300 shadow-xs'
+            }`}
+          >
+            <span
+              className={`text-[11px] font-semibold uppercase tracking-wider block ${
+                statusFilter === 'RESOLVED' ? 'text-teal-100' : 'text-teal-700'
+              }`}
+            >
+              Resolved
+            </span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span
+                className={`text-xl sm:text-2xl font-bold ${
+                  statusFilter === 'RESOLVED' ? 'text-white' : 'text-teal-600'
+                }`}
+              >
+                {stats.resolved}
+              </span>
+              <span
+                className={`text-[10px] ${
+                  statusFilter === 'RESOLVED' ? 'text-teal-200' : 'text-teal-600/80'
+                }`}
+              >
+                Done
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'REJECTED' ? 'ALL' : 'REJECTED')}
+            className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+              statusFilter === 'REJECTED'
+                ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-2 ring-rose-600/30'
+                : 'bg-gradient-to-br from-rose-50/40 to-white border-rose-200/80 hover:border-rose-300 shadow-xs'
+            }`}
+          >
+            <span
+              className={`text-[11px] font-semibold uppercase tracking-wider block ${
+                statusFilter === 'REJECTED' ? 'text-rose-100' : 'text-rose-700'
+              }`}
+            >
+              Rejected
+            </span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span
+                className={`text-xl sm:text-2xl font-bold ${
+                  statusFilter === 'REJECTED' ? 'text-white' : 'text-rose-600'
+                }`}
+              >
+                {stats.rejected}
+              </span>
+              <span
+                className={`text-[10px] ${
+                  statusFilter === 'REJECTED' ? 'text-rose-200' : 'text-rose-600/80'
+                }`}
+              >
+                Closed
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDeptFilter(deptFilter === 'Unassigned' ? 'ALL' : 'Unassigned')}
+            className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer col-span-2 sm:col-span-1 ${
+              deptFilter === 'Unassigned'
+                ? 'bg-amber-800 text-white border-amber-800 shadow-md ring-2 ring-amber-800/30'
+                : 'bg-gradient-to-br from-slate-50 to-white border-slate-300 hover:border-slate-400 shadow-xs'
+            }`}
+          >
+            <span
+              className={`text-[11px] font-semibold uppercase tracking-wider block ${
+                deptFilter === 'Unassigned' ? 'text-amber-100' : 'text-slate-600'
+              }`}
+            >
+              Unassigned
+            </span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span
+                className={`text-xl sm:text-2xl font-bold ${
+                  deptFilter === 'Unassigned' ? 'text-white' : 'text-slate-700'
+                }`}
+              >
+                {stats.unassigned}
+              </span>
+              <span
+                className={`text-[10px] ${
+                  deptFilter === 'Unassigned' ? 'text-amber-200' : 'text-slate-500'
+                }`}
+              >
+                Need Dept
+              </span>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Needs Attention Queue (Phase 4.3A - Deterministic Prioritization for Admins) */}
+      {isStaffOrAdmin && (
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 border border-amber-500/20">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  Needs Attention
+                  {attentionRequests.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                      {attentionRequests.length}
+                    </span>
+                  )}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Unassigned tickets, long-pending workflows, and delayed in-progress requests
+                </p>
+              </div>
+            </div>
+            {stats && stats.avg_resolution_hours > 0 && (
+              <div className="self-start sm:self-center px-3 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5 border border-slate-200">
+                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                <span>Avg Resolution: <strong>{stats.avg_resolution_hours}h</strong></span>
+              </div>
+            )}
           </div>
 
-          <div className="bg-white rounded-2xl p-3.5 border border-amber-200/80 shadow-xs bg-gradient-to-br from-amber-50/40 to-white">
-            <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider block">Pending</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-xl sm:text-2xl font-bold text-amber-600">{stats.pending}</span>
-              <span className="text-[10px] text-amber-600/80">Action</span>
+          {attentionRequests.length === 0 ? (
+            <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>All operational requests are currently assigned and within active turnaround targets.</span>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {attentionRequests.map(({ request: req, reason }) => (
+                <div
+                  key={req.id}
+                  onClick={() => handleOpenDetail(req)}
+                  className="p-3 rounded-xl border border-amber-200/70 bg-gradient-to-br from-amber-50/30 via-white to-white hover:border-amber-400 hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                        {req.public_id}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                        {reason}
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                      {req.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                      {req.student_name} • {req.location || 'Campus'}
+                    </p>
+                  </div>
 
-          <div className="bg-white rounded-2xl p-3.5 border border-indigo-200/80 shadow-xs bg-gradient-to-br from-indigo-50/40 to-white">
-            <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider block">In Progress</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-xl sm:text-2xl font-bold text-indigo-600">{stats.in_progress}</span>
-              <span className="text-[10px] text-indigo-600/80">Active</span>
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                    <span className="text-slate-400 font-medium">
+                      Age: <strong className="text-slate-700">{req.age?.formatted}</strong>
+                    </span>
+                    <span className="text-indigo-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                      Review & Assign &rarr;
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-3.5 border border-emerald-200/80 shadow-xs bg-gradient-to-br from-emerald-50/40 to-white">
-            <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">Approved</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-xl sm:text-2xl font-bold text-emerald-600">{stats.approved}</span>
-              <span className="text-[10px] text-emerald-600/80">Passes</span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-3.5 border border-teal-200/80 shadow-xs bg-gradient-to-br from-teal-50/40 to-white">
-            <span className="text-[11px] font-semibold text-teal-700 uppercase tracking-wider block">Resolved</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-xl sm:text-2xl font-bold text-teal-600">{stats.resolved}</span>
-              <span className="text-[10px] text-teal-600/80">Done</span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-3.5 border border-rose-200/80 shadow-xs bg-gradient-to-br from-rose-50/40 to-white">
-            <span className="text-[11px] font-semibold text-rose-700 uppercase tracking-wider block">Rejected</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-xl sm:text-2xl font-bold text-rose-600">{stats.rejected}</span>
-              <span className="text-[10px] text-rose-600/80">Closed</span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-3.5 border border-slate-300 shadow-xs bg-gradient-to-br from-slate-50 to-white col-span-2 sm:col-span-1">
-            <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">Unassigned</span>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-xl sm:text-2xl font-bold text-slate-700">{stats.unassigned}</span>
-              <span className="text-[10px] text-slate-500">Need Dept</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -808,6 +1161,18 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               Gate Passes & Leave
             </button>
 
+            <button
+              onClick={() => setActiveTab('mess')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'mess'
+                  ? 'bg-orange-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <UtensilsCrossed className="w-3.5 h-3.5" />
+              Mess & Dining
+            </button>
+
             {isStaffOrAdmin && (
               <button
                 onClick={() => setActiveTab('stats')}
@@ -821,17 +1186,31 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                 Workload & Depts
               </button>
             )}
+
+            {isStaffOrAdmin && (
+              <button
+                onClick={() => setActiveTab('broadcasts')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === 'broadcasts'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Bell className="w-3.5 h-3.5" />
+                Targeted Broadcasts
+              </button>
+            )}
           </div>
 
           {/* Sort & Filter Controls */}
-          {activeTab !== 'stats' && (
+          {activeTab !== 'stats' && activeTab !== 'mess' && activeTab !== 'broadcasts' && (
             <div className="flex flex-wrap items-center gap-2 pb-3">
               {/* Search input */}
               <div className="relative min-w-[180px] flex-1 sm:flex-initial">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search ID, title, room..."
+                  placeholder="Search ID (CP-...), student, title, category..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
@@ -917,78 +1296,673 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
                   <option value="ageing">Oldest Unresolved (Ageing)</option>
                 </select>
               </div>
+
+              {/* Clear Filters Button */}
+              {(statusFilter !== 'ALL' || deptFilter !== 'ALL' || typeFilter !== 'ALL' || staffFilter !== 'ALL' || searchQuery.trim() !== '') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter('ALL');
+                    setDeptFilter('ALL');
+                    setTypeFilter('ALL');
+                    setStaffFilter('ALL');
+                    setSearchQuery('');
+                  }}
+                  className="text-xs px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Clear all active filters"
+                >
+                  <X className="w-3 h-3 text-slate-500" />
+                  <span>Clear</span>
+                </button>
+              )}
             </div>
           )}
         </div>
 
-        {/* Tab 5: Department Workload & Stats View */}
-        {activeTab === 'stats' && stats && (
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Department Workload Breakdown */}
-              <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-                  <Building2 className="w-4 h-4 text-indigo-600" />
-                  Department Workload Distribution
-                </h3>
-                <div className="space-y-3">
-                  {Object.entries(stats.department_workload).map(([dept, count]) => {
-                    const numCount = Number(count);
-                    const pct = Math.round((numCount / Math.max(1, stats.total)) * 100);
-                    return (
-                      <div key={dept} className="space-y-1">
-                        <div className="flex justify-between text-xs font-medium">
-                          <span className="text-slate-700">{dept}</span>
-                          <span className="text-slate-900 font-bold">{numCount} requests ({pct}%)</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                          <div
-                            className="h-full bg-indigo-600 rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%` }}
+        {/* Tab 5: Operational Workload & Recurring Problems (Phase 4.3B) */}
+        {activeTab === 'stats' && (
+          <div className="p-4 sm:p-6 space-y-6">
+            {isLoading ? (
+              <div className="p-12 text-center text-slate-400">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-500" />
+                <p className="text-xs">Loading operational workload analytics...</p>
+              </div>
+            ) : !stats ? (
+              <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
+                <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-800">Operational analytics currently unavailable</p>
+                <p className="text-xs text-slate-500 mt-1">Please ensure administrative server is connected.</p>
+                <button
+                  type="button"
+                  onClick={() => loadData(true)}
+                  className="mt-3 px-3.5 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 cursor-pointer"
+                >
+                  Retry Loading
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Header & Subtab Controls */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-100">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-indigo-600" />
+                      Operations Workload & Incident Intelligence
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Deterministic real-time visibility into staff capacity, department backlogs, and repeated campus issues.
+                    </p>
+                  </div>
+
+                  {/* Segmented view switcher */}
+                  <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto scrollbar-none">
+                    <button
+                      type="button"
+                      onClick={() => setWorkloadSubTab('overview')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                        workloadSubTab === 'overview'
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Activity className="w-3.5 h-3.5" />
+                      Overview
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setWorkloadSubTab('staff')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                        workloadSubTab === 'staff'
+                          ? 'bg-white text-indigo-700 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      Staff Workload
+                      {stats.staff_workload && stats.staff_workload.some((s) => s.is_overloaded) && (
+                        <span className="w-2 h-2 rounded-full bg-rose-500" title="Overloaded staff identified" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setWorkloadSubTab('departments')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                        workloadSubTab === 'departments'
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      Departments
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setWorkloadSubTab('recurring')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                        workloadSubTab === 'recurring'
+                          ? 'bg-white text-amber-700 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Flame className="w-3.5 h-3.5 text-amber-500" />
+                      Recurring Problems
+                      {stats.recurring_problems && stats.recurring_problems.filter((r) => r.is_recurring).length > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[10px] font-extrabold">
+                          {stats.recurring_problems.filter((r) => r.is_recurring).length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Operations KPI Top Highlights */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Staff Monitored</span>
+                      <Users className="w-4 h-4 text-indigo-500" />
+                    </div>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-xl font-bold text-slate-900">
+                        {stats.staff_workload?.filter((s) => s.active > 0).length || 0}
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        / {stats.staff_workload?.length || 0} active
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-[10px]">
+                      {stats.staff_workload?.some((s) => s.is_overloaded) ? (
+                        <span className="text-rose-600 font-bold flex items-center gap-0.5">
+                          <AlertCircle className="w-3 h-3" />
+                          {stats.staff_workload.filter((s) => s.is_overloaded).length} Overloaded
+                        </span>
+                      ) : (
+                        <span className="text-emerald-600 font-semibold">Load balanced</span>
+                      )}
+                      <span className="text-slate-400">•</span>
+                      <span className="text-emerald-700 font-medium">
+                        {stats.staff_workload?.filter((s) => s.is_available).length || 0} Available
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Unassigned Requests</span>
+                      <UserX className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-xl font-bold text-amber-900">
+                        {stats.unassigned_requests_count ?? stats.unassigned}
+                      </span>
+                      <span className="text-[11px] text-amber-700">Need staff</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStaffFilter('Unassigned');
+                        setActiveTab('all');
+                      }}
+                      className="mt-1 text-[10px] font-bold text-amber-800 hover:text-amber-900 underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      Assign pending staff &rarr;
+                    </button>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-blue-800">Top Workload Dept</span>
+                      <Building2 className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <p className="mt-1 text-xs font-bold text-blue-950 truncate" title={stats.department_analytics?.[0]?.department || 'None'}>
+                      {stats.department_analytics?.[0]?.department || 'All Departments'}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-blue-700 font-medium">
+                      {stats.department_analytics?.[0]?.active || 0} active • {stats.department_analytics?.[0]?.total || 0} total
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-rose-50/60 border border-rose-200/80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800">Recurring Hotspots</span>
+                      <Flame className="w-4 h-4 text-rose-600" />
+                    </div>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-xl font-bold text-rose-900">
+                        {stats.recurring_problems?.filter((r) => r.is_recurring).length || 0}
+                      </span>
+                      <span className="text-[11px] text-rose-700">Patterns detected</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setWorkloadSubTab('recurring')}
+                      className="mt-1 text-[10px] font-bold text-rose-800 hover:text-rose-900 underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      View recurring patterns &rarr;
+                    </button>
+                  </div>
+                </div>
+
+                {/* SECTION 1: STAFF WORKLOAD */}
+                {(workloadSubTab === 'overview' || workloadSubTab === 'staff') && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                          <Users className="w-4 h-4 text-indigo-600" />
+                          Staff Operational Workload
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Active task distribution across assigned maintenance technicians, wardens, and administrative officers.
+                        </p>
+                      </div>
+
+                      {/* Staff Filters */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Search input */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            placeholder="Filter staff by name/dept..."
+                            value={staffSearchQuery}
+                            onChange={(e) => setStaffSearchQuery(e.target.value)}
+                            className="pl-7 pr-2.5 py-1 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none w-44"
                           />
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
 
-              {/* By Workflow Type Breakdown */}
-              <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-                  <Tag className="w-4 h-4 text-emerald-600" />
-                  Requests by Workflow Category
-                </h3>
-                <div className="space-y-3">
-                  {Object.entries(stats.by_type).map(([typ, count]) => {
-                    const cleanName = typ.replace(/_/g, ' ');
-                    return (
-                      <div
-                        key={typ}
-                        className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200/80"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
-                            {getTypeIcon(typ as CampusRequestType)}
-                          </div>
-                          <span className="text-xs font-semibold text-slate-800 capitalize">
-                            {cleanName.toLowerCase()}
-                          </span>
+                        {/* Status filter chips */}
+                        <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-xl text-[11px]">
+                          {(['ALL', 'OVERLOADED', 'BUSY', 'AVAILABLE'] as const).map((st) => (
+                            <button
+                              key={st}
+                              type="button"
+                              onClick={() => setStaffStatusFilter(st)}
+                              className={`px-2 py-0.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                                staffStatusFilter === st
+                                  ? 'bg-white text-slate-900 shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              {st === 'ALL' ? 'All' : st.charAt(0) + st.slice(1).toLowerCase()}
+                            </button>
+                          ))}
                         </div>
-                        <span className="text-xs font-bold text-slate-900 px-2 py-0.5 rounded-md bg-slate-100">
-                          {count}
-                        </span>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+                    </div>
+
+                    {/* Staff Workload Cards Grid */}
+                    {filteredStaffWorkload.length === 0 ? (
+                      <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">
+                        <Users className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                        <p className="text-xs font-semibold text-slate-600">No staff members match the selected criteria</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {filteredStaffWorkload.map((staff: StaffWorkloadItem) => {
+                          const isOverloaded = staff.is_overloaded;
+                          const isAvailable = staff.is_available;
+                          return (
+                            <div
+                              key={staff.staff_name}
+                              className={`p-4 rounded-2xl border transition-all ${
+                                isOverloaded
+                                  ? 'bg-gradient-to-br from-rose-50/40 via-white to-white border-rose-300 shadow-xs ring-1 ring-rose-200'
+                                  : isAvailable
+                                  ? 'bg-gradient-to-br from-emerald-50/30 via-white to-white border-emerald-200/90 shadow-xs'
+                                  : 'bg-white border-slate-200/90 shadow-xs'
+                              }`}
+                            >
+                              {/* Top staff info & status badge */}
+                              <div className="flex items-start justify-between gap-2 mb-3">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div
+                                    className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                                      isOverloaded
+                                        ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                        : isAvailable
+                                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                        : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                                    }`}
+                                  >
+                                    {staff.staff_name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('')}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h4 className="text-xs font-bold text-slate-900 truncate" title={staff.staff_name}>
+                                      {staff.staff_name}
+                                    </h4>
+                                    <p className="text-[11px] text-slate-500 truncate" title={staff.department}>
+                                      {staff.department}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border shrink-0 ${
+                                    isOverloaded
+                                      ? 'bg-rose-100 text-rose-800 border-rose-200 animate-pulse'
+                                      : isAvailable
+                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                      : 'bg-blue-100 text-blue-800 border-blue-200'
+                                  }`}
+                                >
+                                  {staff.status}
+                                </span>
+                              </div>
+
+                              {/* Workload metric boxes */}
+                              <div className="grid grid-cols-4 gap-1.5 text-center mb-3">
+                                <div className="p-1.5 rounded-xl bg-slate-50 border border-slate-100">
+                                  <span className="text-[10px] text-slate-400 block font-semibold">Total</span>
+                                  <span className="text-xs font-extrabold text-slate-800">{staff.total_assigned}</span>
+                                </div>
+                                <div className="p-1.5 rounded-xl bg-amber-50/70 border border-amber-100">
+                                  <span className="text-[10px] text-amber-700 block font-semibold">Active</span>
+                                  <span className="text-xs font-extrabold text-amber-900">{staff.active}</span>
+                                </div>
+                                <div className="p-1.5 rounded-xl bg-emerald-50/70 border border-emerald-100">
+                                  <span className="text-[10px] text-emerald-700 block font-semibold">Resolved</span>
+                                  <span className="text-xs font-extrabold text-emerald-900">{staff.resolved}</span>
+                                </div>
+                                <div className={`p-1.5 rounded-xl border ${staff.overdue_ageing > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-100'}`}>
+                                  <span className={`text-[10px] block font-semibold ${staff.overdue_ageing > 0 ? 'text-rose-700' : 'text-slate-400'}`}>
+                                    Overdue
+                                  </span>
+                                  <span className={`text-xs font-extrabold ${staff.overdue_ageing > 0 ? 'text-rose-700' : 'text-slate-500'}`}>
+                                    {staff.overdue_ageing}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Workload Capacity Meter */}
+                              <div className="space-y-1 mb-3">
+                                <div className="flex justify-between text-[10px] font-medium text-slate-500">
+                                  <span>Active Load Level</span>
+                                  <span>{staff.active} active task{staff.active === 1 ? '' : 's'}</span>
+                                </div>
+                                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${
+                                      isOverloaded
+                                        ? 'bg-rose-600'
+                                        : staff.active > 1
+                                        ? 'bg-indigo-600'
+                                        : staff.active > 0
+                                        ? 'bg-blue-500'
+                                        : 'bg-emerald-500'
+                                    }`}
+                                    style={{
+                                      width: `${Math.min(100, Math.max(12, staff.active * 33))}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Action buttons */}
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStaffFilter(staff.staff_name);
+                                    setActiveTab('all');
+                                  }}
+                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>View Assigned Requests</span>
+                                  <ArrowRight className="w-3 h-3" />
+                                </button>
+                                {isAvailable && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setStaffFilter('Unassigned');
+                                      setActiveTab('all');
+                                    }}
+                                    className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[10px] hover:bg-emerald-200 transition-colors cursor-pointer"
+                                    title="View unassigned requests to assign to this staff"
+                                  >
+                                    Assign Work
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SECTION 2: DEPARTMENT WORKLOAD */}
+                {(workloadSubTab === 'overview' || workloadSubTab === 'departments') && (
+                  <div className="space-y-4 pt-4 border-t border-slate-100">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-indigo-600" />
+                        Department Workload Comparison
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Operational load, pending queues, and resolution progress across all campus service units.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {(stats.department_analytics || []).map((dept: DepartmentWorkloadItem) => {
+                        return (
+                          <div
+                            key={dept.department}
+                            className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                                    <Building2 className="w-4 h-4" />
+                                  </div>
+                                  <h4 className="text-xs font-bold text-slate-900 truncate" title={dept.department}>
+                                    {dept.department}
+                                  </h4>
+                                </div>
+                                <span className="text-xs font-bold text-slate-900 px-2 py-0.5 rounded-md bg-slate-100 shrink-0">
+                                  {dept.total} reqs
+                                </span>
+                              </div>
+
+                              {/* Breakdown badges */}
+                              <div className="grid grid-cols-4 gap-1 text-center my-3">
+                                <div className="p-1 rounded-lg bg-amber-50 text-amber-800 text-[10px] font-semibold">
+                                  <span className="block text-[9px] text-amber-600">Pending</span>
+                                  {dept.pending}
+                                </div>
+                                <div className="p-1 rounded-lg bg-blue-50 text-blue-800 text-[10px] font-semibold">
+                                  <span className="block text-[9px] text-blue-600">Active</span>
+                                  {dept.in_progress}
+                                </div>
+                                <div className="p-1 rounded-lg bg-emerald-50 text-emerald-800 text-[10px] font-semibold">
+                                  <span className="block text-[9px] text-emerald-600">Done</span>
+                                  {dept.resolved}
+                                </div>
+                                <div className={`p-1 rounded-lg text-[10px] font-semibold ${dept.overdue_ageing > 0 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'}`}>
+                                  <span className="block text-[9px] text-slate-500">Aged</span>
+                                  {dept.overdue_ageing}
+                                </div>
+                              </div>
+
+                              {/* Progress bar */}
+                              <div className="space-y-1 mb-3">
+                                <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+                                  <span>Resolution Rate</span>
+                                  <span>{dept.resolution_rate}%</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-slate-100 flex overflow-hidden">
+                                  <div
+                                    className="bg-emerald-500 h-full transition-all duration-500"
+                                    style={{ width: `${dept.total > 0 ? (dept.resolved / dept.total) * 100 : 0}%` }}
+                                    title={`Resolved: ${dept.resolved}`}
+                                  />
+                                  <div
+                                    className="bg-blue-500 h-full transition-all duration-500"
+                                    style={{ width: `${dept.total > 0 ? (dept.in_progress / dept.total) * 100 : 0}%` }}
+                                    title={`In Progress: ${dept.in_progress}`}
+                                  />
+                                  <div
+                                    className="bg-amber-400 h-full transition-all duration-500"
+                                    style={{ width: `${dept.total > 0 ? (dept.pending / dept.total) * 100 : 0}%` }}
+                                    title={`Pending: ${dept.pending}`}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeptFilter(dept.department);
+                                setActiveTab('all');
+                              }}
+                              className="pt-2 border-t border-slate-100 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center justify-between cursor-pointer"
+                            >
+                              <span>Filter Department Requests</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* SECTION 3: RECURRING PROBLEMS */}
+                {(workloadSubTab === 'overview' || workloadSubTab === 'recurring') && (
+                  <div className="space-y-4 pt-4 border-t border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                          <Flame className="w-4 h-4 text-amber-600" />
+                          Recurring Operational Problems & Pattern Hotspots
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Deterministic aggregation grouping repeated complaints by category, department, and campus location.
+                        </p>
+                      </div>
+
+                      <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-800 font-bold text-xs border border-amber-200 self-start sm:self-auto">
+                        {stats.recurring_problems?.filter((r) => r.is_recurring).length || 0} Patterns Identified
+                      </span>
+                    </div>
+
+                    {(!stats.recurring_problems || stats.recurring_problems.length === 0) ? (
+                      <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">
+                        <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
+                        <p className="text-xs font-semibold text-slate-700">No recurring issues detected</p>
+                        <p className="text-[11px] text-slate-400">All recent complaints are isolated incidents.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {stats.recurring_problems.map((prob: RecurringProblemItem) => {
+                          const isHigh = prob.severity === 'HIGH';
+                          return (
+                            <div
+                              key={prob.id}
+                              className={`p-4 rounded-2xl border transition-all ${
+                                isHigh
+                                  ? 'bg-gradient-to-br from-rose-50/40 via-white to-white border-rose-200 shadow-xs'
+                                  : 'bg-white border-slate-200/90 shadow-xs'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div
+                                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                                      isHigh
+                                        ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                        : 'bg-amber-100 text-amber-700 border border-amber-200'
+                                    }`}
+                                  >
+                                    <AlertTriangle className="w-4 h-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h4 className="text-xs font-bold text-slate-900 truncate">
+                                      {prob.category_label}
+                                    </h4>
+                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 truncate">
+                                      <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                      <span className="font-semibold text-slate-700 truncate">{prob.location_area}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                                      isHigh
+                                        ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                    }`}
+                                  >
+                                    {prob.count} Reports
+                                  </span>
+                                  {prob.unresolved_count > 0 && (
+                                    <span className="text-[10px] font-bold text-rose-600">
+                                      {prob.unresolved_count} Unresolved
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="my-2.5 p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 space-y-1.5 text-[11px]">
+                                <div className="flex items-center justify-between text-slate-600">
+                                  <span className="text-slate-400">Department:</span>
+                                  <span className="font-medium text-slate-800 truncate max-w-[200px]" title={prob.department}>
+                                    {prob.department}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-slate-600">
+                                  <span className="text-slate-400">Timeline:</span>
+                                  <span className="font-mono text-[10px] text-slate-700">
+                                    {prob.first_reported.slice(0, 10)} &rarr; {prob.last_reported.slice(0, 10)}
+                                  </span>
+                                </div>
+                                {prob.sample_titles.length > 0 && (
+                                  <div className="pt-1 border-t border-slate-200/60">
+                                    <span className="text-slate-400 text-[10px] block mb-0.5">Sample Reports:</span>
+                                    <ul className="list-disc list-inside text-slate-700 space-y-0.5">
+                                      {prob.sample_titles.slice(0, 2).map((t, idx) => (
+                                        <li key={idx} className="truncate text-[11px]" title={t}>
+                                          {t}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Sample tickets pills and inspect button */}
+                              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+                                  {prob.sample_public_ids.map((id) => (
+                                    <button
+                                      key={id}
+                                      type="button"
+                                      onClick={() => {
+                                        const target = requests.find((r) => r.public_id === id);
+                                        if (target) handleOpenDetail(target);
+                                        else {
+                                          setSearchQuery(id);
+                                          setActiveTab('all');
+                                        }
+                                      }}
+                                      className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200 transition-colors cursor-pointer"
+                                      title={`View request ${id}`}
+                                    >
+                                      {id}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSearchQuery(prob.location_area);
+                                    setActiveTab('all');
+                                  }}
+                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-0.5 shrink-0 cursor-pointer"
+                                >
+                                  <span>Filter Area Reqs</span>
+                                  <ArrowRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Tab 6: Mess & Dining Management / Student Menu (Phase 4.3C) */}
+        {activeTab === 'mess' && (
+          <div className="p-4 sm:p-6">
+            <MessOperations user={user} isStaffOrAdmin={isStaffOrAdmin} />
+          </div>
+        )}
+
+        {/* Tab 7: Targeted Notifications & Broadcasts (Phase 4.3D) */}
+        {activeTab === 'broadcasts' && isStaffOrAdmin && (
+          <div className="p-4 sm:p-6">
+            <AdminTargetedNotifications user={user} />
           </div>
         )}
 
         {/* Requests List View */}
-        {activeTab !== 'stats' && (
+        {activeTab !== 'stats' && activeTab !== 'mess' && activeTab !== 'broadcasts' && (
           <div className="divide-y divide-slate-100">
             {isLoading ? (
               <div className="p-12 text-center text-slate-400">

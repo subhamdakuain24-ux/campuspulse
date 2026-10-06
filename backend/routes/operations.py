@@ -39,9 +39,9 @@ def calculate_time_diff_human(start_str: str, end_str: str | None = None) -> dic
         rem_mins = mins % 60
         
         if total_seconds < 60:
-            formatted = "Just now"
+            formatted = "1 min"
         elif total_seconds < 3600:
-            formatted = f"{mins}m"
+            formatted = f"{mins} min"
         elif hours < 24:
             if rem_mins > 0:
                 formatted = f"{hrs}h {rem_mins}m"
@@ -158,9 +158,9 @@ def get_campus_requests():
         params.append(staff)
 
     if search:
-        query += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(public_id) LIKE ? OR LOWER(location) LIKE ? OR LOWER(student_name) LIKE ?)"
+        query += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(public_id) LIKE ? OR LOWER(location) LIKE ? OR LOWER(student_name) LIKE ? OR LOWER(student_identifier) LIKE ? OR LOWER(category) LIKE ? OR LOWER(assigned_staff) LIKE ?)"
         term = f"%{search}%"
-        params.extend([term, term, term, term, term])
+        params.extend([term, term, term, term, term, term, term, term])
 
     # Sorting
     if sort_by == "oldest":
@@ -628,24 +628,309 @@ def update_campus_request(ident: str):
         "request": result
     }), 200
 
+KNOWN_STAFF_ROSTER = [
+    {"name": "Rajesh Kumar (Facility Tech)", "dept": "Hostel Maintenance & Plumbing"},
+    {"name": "Elena Rostova (Senior Network Admin)", "dept": "Campus IT & Network Ops"},
+    {"name": "Sarah Williams (Registrar Officer)", "dept": "Academic Affairs & Registrar"},
+    {"name": "Chief Warden Davis", "dept": "Hostel Wardens Office"},
+    {"name": "Prof. Sarah Jenkins", "dept": "Dean of Student Affairs"},
+    {"name": "George Miller (Carpenter)", "dept": "Carpentry & Glazing Works"},
+    {"name": "Vikram Singh (HVAC Specialist)", "dept": "Electrical & Power Systems"},
+    {"name": "Tech. Ramesh Kumar", "dept": "Hostel Maintenance & Plumbing"},
+    {"name": "Officer Marcus Vance", "dept": "Campus Security"},
+    {"name": "Warden Michael Chang", "dept": "Hostel Wardens Office"},
+]
+
+STANDARD_DEPARTMENTS = [
+    "Hostel Maintenance & Plumbing",
+    "Campus IT & Network Ops",
+    "Academic Affairs & Registrar",
+    "Hostel Wardens Office",
+    "Dean of Student Affairs",
+    "Electrical & Power Systems",
+    "Carpentry & Glazing Works",
+    "Sanitation & Cleanliness",
+    "Campus Security",
+]
+
+def extract_location_area(location_text: str | None) -> str:
+    if not location_text:
+        return "General Campus"
+    text = location_text.strip()
+    lower = text.lower()
+    if "oak ridge" in lower:
+        return "Oak Ridge Residence Hall"
+    if "block c" in lower or "hostel block c" in lower:
+        return "Hostel Block C"
+    if "maple" in lower:
+        return "Maple Hall"
+    if "turing" in lower or "science block" in lower:
+        return "Turing Science Block"
+    if "registrar" in lower:
+        return "Academic Registrar Office"
+    if "gate" in lower or "security" in lower:
+        return "Main Campus Security & Gates"
+    if "computing" in lower or "cs" in lower:
+        return "Department of Computing"
+    parts = text.split(",")
+    return parts[0].strip()[:35]
+
+CATEGORY_LABELS = {
+    "PLUMBING": "Plumbing & Water Leakages",
+    "ELECTRICAL": "Electrical & Power Faults",
+    "WIFI_NETWORK": "Wi-Fi & Network Connectivity",
+    "HOSTEL": "Hostel Room & Furniture Maintenance",
+    "CLEANLINESS": "Sanitation & Housekeeping",
+    "WATER": "Drinking Water & Supply",
+    "CLASSROOM": "Classroom & Lab Facilities",
+    "WASHROOM": "Restroom & Sanitation",
+    "BONAFIDE": "Bonafide Certificate Requests",
+    "GATE_PASS": "Gate Pass Approvals",
+    "LEAVE_REQUEST": "Academic Leave Requests",
+    "OTHER": "General Campus Inquiries"
+}
+
+def calculate_detailed_operations_analytics(all_requests: list) -> dict:
+    """
+    Phase 4.3B Deterministic Aggregation Engine:
+    - Staff Workload (assigned, active, resolved, overdue, overloaded/available identification)
+    - Department Workload (total, pending, in_progress, resolved, overdue, rate)
+    - Recurring Problems (deterministic clustering by category, department, location area)
+    """
+    staff_map = {}
+    for s in KNOWN_STAFF_ROSTER:
+        staff_map[s["name"]] = {
+            "staff_name": s["name"],
+            "department": s["dept"],
+            "total_assigned": 0,
+            "pending": 0,
+            "in_progress": 0,
+            "resolved": 0,
+            "rejected": 0,
+            "overdue_ageing": 0,
+            "active": 0,
+        }
+
+    unassigned_staff_requests_count = 0
+
+    dept_map = {}
+    for d in STANDARD_DEPARTMENTS:
+        dept_map[d] = {
+            "department": d,
+            "total": 0,
+            "pending": 0,
+            "in_progress": 0,
+            "resolved": 0,
+            "rejected": 0,
+            "overdue_ageing": 0,
+            "active": 0,
+        }
+
+    recurring_groups = {}
+
+    for r in all_requests:
+        status = (r.get("status") or "PENDING").upper()
+        staff_name = (r.get("assigned_staff") or "").strip()
+        dept = (r.get("assigned_department") or "").strip()
+        category = (r.get("category") or "OTHER").upper()
+        req_type = r.get("request_type") or "OTHER"
+        location_raw = r.get("location") or ""
+        area = extract_location_area(location_raw)
+        created_at = r.get("created_at") or ""
+
+        age_info = calculate_time_diff_human(created_at)
+        is_aged = age_info.get("is_aged", False)
+        is_unresolved = status not in ("RESOLVED", "COMPLETED", "CLOSED", "APPROVED", "REJECTED")
+
+        # 1. Staff aggregation
+        if not staff_name or staff_name == "Unassigned":
+            unassigned_staff_requests_count += 1
+        else:
+            if staff_name not in staff_map:
+                staff_map[staff_name] = {
+                    "staff_name": staff_name,
+                    "department": dept or "Campus Operations",
+                    "total_assigned": 0,
+                    "pending": 0,
+                    "in_progress": 0,
+                    "resolved": 0,
+                    "rejected": 0,
+                    "overdue_ageing": 0,
+                    "active": 0,
+                }
+            s_entry = staff_map[staff_name]
+            s_entry["total_assigned"] += 1
+            if dept and s_entry["department"] in ("", "Campus Operations", "Unassigned"):
+                s_entry["department"] = dept
+
+            if status in ("PENDING", "SUBMITTED", "UNDER_REVIEW"):
+                s_entry["pending"] += 1
+                s_entry["active"] += 1
+                if is_aged:
+                    s_entry["overdue_ageing"] += 1
+            elif status in ("IN_PROGRESS", "PROCESSING", "ASSIGNED"):
+                s_entry["in_progress"] += 1
+                s_entry["active"] += 1
+                if is_aged:
+                    s_entry["overdue_ageing"] += 1
+            elif status in ("RESOLVED", "COMPLETED", "CLOSED", "APPROVED"):
+                s_entry["resolved"] += 1
+            elif status == "REJECTED":
+                s_entry["rejected"] += 1
+
+        # 2. Department aggregation
+        eff_dept = dept if dept and dept != "Unassigned" else "Unassigned"
+        if eff_dept not in dept_map:
+            dept_map[eff_dept] = {
+                "department": eff_dept,
+                "total": 0,
+                "pending": 0,
+                "in_progress": 0,
+                "resolved": 0,
+                "rejected": 0,
+                "overdue_ageing": 0,
+                "active": 0,
+            }
+        d_entry = dept_map[eff_dept]
+        d_entry["total"] += 1
+        if status in ("PENDING", "SUBMITTED", "UNDER_REVIEW"):
+            d_entry["pending"] += 1
+            d_entry["active"] += 1
+            if is_aged:
+                d_entry["overdue_ageing"] += 1
+        elif status in ("IN_PROGRESS", "PROCESSING", "ASSIGNED"):
+            d_entry["in_progress"] += 1
+            d_entry["active"] += 1
+            if is_aged:
+                d_entry["overdue_ageing"] += 1
+        elif status in ("RESOLVED", "COMPLETED", "CLOSED", "APPROVED"):
+            d_entry["resolved"] += 1
+        elif status == "REJECTED":
+            d_entry["rejected"] += 1
+
+        # 3. Recurring problem clustering
+        cluster_key = (category, eff_dept, area)
+        if cluster_key not in recurring_groups:
+            recurring_groups[cluster_key] = {
+                "category": category,
+                "category_label": CATEGORY_LABELS.get(category, category.replace("_", " ").title()),
+                "department": eff_dept,
+                "location_area": area,
+                "request_type": req_type,
+                "count": 0,
+                "unresolved_count": 0,
+                "resolved_count": 0,
+                "overdue_count": 0,
+                "sample_public_ids": [],
+                "sample_titles": [],
+                "first_reported": created_at,
+                "last_reported": created_at,
+            }
+        grp = recurring_groups[cluster_key]
+        grp["count"] += 1
+        if is_unresolved:
+            grp["unresolved_count"] += 1
+            if is_aged:
+                grp["overdue_count"] += 1
+        else:
+            grp["resolved_count"] += 1
+
+        pub_id = r.get("public_id") or f"CP-{r.get('id')}"
+        if pub_id not in grp["sample_public_ids"] and len(grp["sample_public_ids"]) < 3:
+            grp["sample_public_ids"].append(pub_id)
+        if r.get("title") and len(grp["sample_titles"]) < 3:
+            grp["sample_titles"].append(r["title"])
+
+        if created_at and (not grp["first_reported"] or created_at < grp["first_reported"]):
+            grp["first_reported"] = created_at
+        if created_at and (not grp["last_reported"] or created_at > grp["last_reported"]):
+            grp["last_reported"] = created_at
+
+    # Format Staff Workload
+    staff_workload_list = []
+    unassigned_staff_list = []
+    for s_name, item in staff_map.items():
+        act = item["active"]
+        if act >= 3:
+            status_label = "OVERLOADED"
+            is_overloaded = True
+            is_available = False
+        elif act > 0:
+            status_label = "BUSY"
+            is_overloaded = False
+            is_available = False
+        else:
+            status_label = "AVAILABLE"
+            is_overloaded = False
+            is_available = True
+            unassigned_staff_list.append({
+                "staff_name": s_name,
+                "department": item["department"],
+                "status": "AVAILABLE"
+            })
+
+        item["status"] = status_label
+        item["is_overloaded"] = is_overloaded
+        item["is_available"] = is_available
+        staff_workload_list.append(item)
+
+    staff_workload_list.sort(key=lambda s: (s["active"], s["total_assigned"]), reverse=True)
+
+    # Format Department Workload
+    dept_analytics_list = []
+    for d_name, d_item in dept_map.items():
+        if d_item["total"] > 0 or d_name in STANDARD_DEPARTMENTS:
+            res_rate = round((d_item["resolved"] / d_item["total"] * 100), 1) if d_item["total"] > 0 else 100.0
+            d_item["resolution_rate"] = res_rate
+            dept_analytics_list.append(d_item)
+
+    dept_analytics_list.sort(key=lambda d: (d["active"], d["total"]), reverse=True)
+
+    # Format Recurring Problems
+    recurring_problems_list = []
+    for idx, (k, grp) in enumerate(recurring_groups.items()):
+        cnt = grp["count"]
+        slug = f"{grp['category'].lower()}-{grp['location_area'].lower().replace(' ', '-')}"
+        grp["id"] = f"rec-{idx+1}-{slug}"
+        grp["is_recurring"] = cnt >= 2
+        if cnt >= 3 or grp["overdue_count"] >= 1:
+            grp["severity"] = "HIGH"
+        elif cnt >= 2:
+            grp["severity"] = "MEDIUM"
+        else:
+            grp["severity"] = "LOW"
+        recurring_problems_list.append(grp)
+
+    recurring_problems_list.sort(key=lambda r: (r["count"], r["unresolved_count"]), reverse=True)
+
+    return {
+        "staff_workload": staff_workload_list,
+        "unassigned_staff": unassigned_staff_list,
+        "unassigned_requests_count": unassigned_staff_requests_count,
+        "department_analytics": dept_analytics_list,
+        "recurring_problems": recurring_problems_list
+    }
+
 @api_bp.route("/operations/stats", methods=["GET"])
 @require_auth
 def get_operations_stats():
     """
-    Returns administrative operational KPIs:
-    - total
-    - pending
-    - in_progress
-    - approved
-    - resolved
-    - rejected
-    - unassigned
-    - aged_complaints (>48 hours)
-    - avg_resolution_hours
-    - by_type
-    - by_status
-    - department_workload
+    Returns administrative operational KPIs & Phase 4.3B Analytics:
+    - total, pending, in_progress, approved, resolved, rejected, unassigned, aged_complaints
+    - avg_resolution_hours, by_type, by_status, department_workload
+    - staff_workload (assigned requests, active, resolved, overdue, overloaded/available identification)
+    - department_analytics (department breakdown with pending, active, resolved, overdue, resolution_rate)
+    - recurring_problems (deterministic cluster aggregation by category, department, location area)
+    - unassigned_staff & unassigned_requests_count
     """
+    user = g.current_user
+    user_role = (user.get("role") or "").lower()
+    if user_role not in ("admin", "teacher", "staff", "warden"):
+        return jsonify({
+            "success": False,
+            "error": "Forbidden: Only authorized administrative personnel can access operational statistics."
+        }), 403
+
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -681,7 +966,6 @@ def get_operations_stats():
 
         if status in ("PENDING", "SUBMITTED", "UNDER_REVIEW"):
             pending_count += 1
-            # Check age
             age_info = calculate_time_diff_human(r.get("created_at") or "")
             if age_info["is_aged"]:
                 aged_count += 1
@@ -704,6 +988,9 @@ def get_operations_stats():
     if resolution_times_hours:
         avg_resolution_hours = round(sum(resolution_times_hours) / len(resolution_times_hours), 1)
 
+    # Phase 4.3B Deterministic Analytics
+    analytics = calculate_detailed_operations_analytics(all_requests)
+
     return jsonify({
         "success": True,
         "stats": {
@@ -718,14 +1005,79 @@ def get_operations_stats():
             "avg_resolution_hours": avg_resolution_hours,
             "by_type": type_counts,
             "by_status": status_counts,
-            "department_workload": dept_workload
+            "department_workload": dept_workload,
+            "department_analytics": analytics["department_analytics"],
+            "staff_workload": analytics["staff_workload"],
+            "unassigned_staff": analytics["unassigned_staff"],
+            "unassigned_requests_count": analytics["unassigned_requests_count"],
+            "recurring_problems": analytics["recurring_problems"]
         }
+    }), 200
+
+@api_bp.route("/operations/workload", methods=["GET"])
+@require_auth
+def get_operations_workload():
+    """Returns staff & department workload analytics (Phase 4.3B). Restricted to Admin/Staff."""
+    user = g.current_user
+    user_role = (user.get("role") or "").lower()
+    if user_role not in ("admin", "teacher", "staff", "warden"):
+        return jsonify({
+            "success": False,
+            "error": "Forbidden: Only authorized administrative personnel can access workload analytics."
+        }), 403
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM campus_requests")
+    all_requests = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    analytics = calculate_detailed_operations_analytics(all_requests)
+    return jsonify({
+        "success": True,
+        "staff_workload": analytics["staff_workload"],
+        "unassigned_staff": analytics["unassigned_staff"],
+        "unassigned_requests_count": analytics["unassigned_requests_count"],
+        "department_workload": analytics["department_analytics"]
+    }), 200
+
+@api_bp.route("/operations/recurring-problems", methods=["GET"])
+@require_auth
+def get_recurring_problems():
+    """Returns repeated operational problems grouped deterministically (Phase 4.3B). Restricted to Admin/Staff."""
+    user = g.current_user
+    user_role = (user.get("role") or "").lower()
+    if user_role not in ("admin", "teacher", "staff", "warden"):
+        return jsonify({
+            "success": False,
+            "error": "Forbidden: Only authorized administrative personnel can access recurring problems."
+        }), 403
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM campus_requests")
+    all_requests = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    analytics = calculate_detailed_operations_analytics(all_requests)
+    return jsonify({
+        "success": True,
+        "count": len(analytics["recurring_problems"]),
+        "recurring_problems": analytics["recurring_problems"]
     }), 200
 
 @api_bp.route("/operations/audit-logs", methods=["GET"])
 @require_auth
 def get_audit_logs():
     """Returns chronological audit activities across all requests."""
+    user = g.current_user
+    user_role = (user.get("role") or "").lower()
+    if user_role not in ("admin", "teacher", "staff", "warden"):
+        return jsonify({
+            "success": False,
+            "error": "Forbidden: Only authorized personnel can access global audit logs."
+        }), 403
+
     limit = int(request.args.get("limit", 50))
     public_id = request.args.get("public_id", "").strip().upper()
 
