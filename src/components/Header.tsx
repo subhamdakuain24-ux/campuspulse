@@ -33,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
     notifications: 'Notifications & Alerts',
     profile: 'Student Profile',
     'ai-chat': 'AI Academic Assistant',
+    fees: user.role === 'Admin' ? 'Fees & Dues Management' : 'Fees & Dues',
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {

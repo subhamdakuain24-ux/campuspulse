@@ -13,6 +13,7 @@ import { NotificationsScreen } from './screens/NotificationsScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { AIAssistantScreen } from './screens/AIAssistantScreen';
 import { OperationsScreen } from './screens/OperationsScreen';
+import { FeesOperations } from './components/FeesOperations';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -176,6 +177,12 @@ export default function App() {
               )}
               {currentScreen === 'profile' && (
                 <ProfileScreen user={user} onUpdateUser={handleUpdateUser} />
+              )}
+              {currentScreen === 'fees' && (
+                <FeesOperations
+                  user={user}
+                  isStaffOrAdmin={user.role === 'Admin' || user.role === 'Teacher'}
+                />
               )}
               {currentScreen === 'ai-chat' && <AIAssistantScreen />}
             </motion.div>

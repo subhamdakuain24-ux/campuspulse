@@ -44,9 +44,11 @@ import {
   ExternalLink,
   UtensilsCrossed,
   Bell,
+  CreditCard,
 } from 'lucide-react';
 import { MessOperations } from '../components/MessOperations';
 import { AdminTargetedNotifications } from '../components/AdminTargetedNotifications';
+import { FeesOperations } from '../components/FeesOperations';
 import {
   CampusRequest,
   CampusRequestType,
@@ -94,7 +96,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
   const isTeacher = user.role === 'Teacher';
   const isStaffOrAdmin = isAdmin || isTeacher;
 
-  const [activeTab, setActiveTab] = useState<'all' | 'complaints' | 'certificates' | 'passes' | 'mess' | 'stats' | 'broadcasts'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'complaints' | 'certificates' | 'passes' | 'mess' | 'fees' | 'stats' | 'broadcasts'>('all');
   const [requests, setRequests] = useState<CampusRequest[]>([]);
   const [stats, setStats] = useState<CampusOperationsStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1173,6 +1175,18 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               Mess & Dining
             </button>
 
+            <button
+              onClick={() => setActiveTab('fees')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'fees'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              Fees & Dues
+            </button>
+
             {isStaffOrAdmin && (
               <button
                 onClick={() => setActiveTab('stats')}
@@ -1203,7 +1217,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
           </div>
 
           {/* Sort & Filter Controls */}
-          {activeTab !== 'stats' && activeTab !== 'mess' && activeTab !== 'broadcasts' && (
+          {activeTab !== 'stats' && activeTab !== 'mess' && activeTab !== 'broadcasts' && activeTab !== 'fees' && (
             <div className="flex flex-wrap items-center gap-2 pb-3">
               {/* Search input */}
               <div className="relative min-w-[180px] flex-1 sm:flex-initial">
@@ -1961,8 +1975,15 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
           </div>
         )}
 
+        {/* Tab 8: Fees & Dues (Phase 4.4) */}
+        {activeTab === 'fees' && (
+          <div className="p-4 sm:p-6">
+            <FeesOperations user={user} isStaffOrAdmin={isStaffOrAdmin} />
+          </div>
+        )}
+
         {/* Requests List View */}
-        {activeTab !== 'stats' && activeTab !== 'mess' && activeTab !== 'broadcasts' && (
+        {activeTab !== 'stats' && activeTab !== 'mess' && activeTab !== 'broadcasts' && activeTab !== 'fees' && (
           <div className="divide-y divide-slate-100">
             {isLoading ? (
               <div className="p-12 text-center text-slate-400">

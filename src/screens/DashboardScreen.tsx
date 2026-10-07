@@ -15,6 +15,7 @@ import {
   Wrench,
   FileCheck2,
   DoorOpen,
+  CreditCard,
 } from 'lucide-react';
 import { ScreenId } from '../types';
 import { api, DashboardApiData } from '../services/api';
@@ -583,12 +584,19 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Hostel complaints, bonafide certificates, weekend gate passes, and department workload tracking.
+                Hostel complaints, bonafide certificates, gate passes, mess dining, and student fees & dues.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => onNavigate('fees')}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+              Fees & Dues
+            </button>
             <button
               onClick={() => onNavigate('operations')}
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"

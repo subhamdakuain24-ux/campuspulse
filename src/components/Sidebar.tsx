@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   Building2,
+  CreditCard,
 } from 'lucide-react';
 import { ScreenId, UserProfile } from '../types';
 import { CampusPulseLogo } from './CampusPulseLogo';
@@ -62,6 +63,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'operations' as ScreenId,
       label: user?.role === 'Admin' ? 'Campus Operations' : 'Campus Requests',
       icon: Building2,
+    },
+    {
+      id: 'fees' as ScreenId,
+      label: user?.role === 'Admin' ? 'Fees & Dues Management' : 'Fees & Dues',
+      icon: CreditCard,
     },
     {
       id: 'notifications' as ScreenId,

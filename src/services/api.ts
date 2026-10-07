@@ -23,6 +23,10 @@ import {
   CreateMessMenuItemPayload,
   CreateTargetedNotificationPayload,
   TargetedNotificationRecord,
+  FeeRecord,
+  FeesApiResponse,
+  CreateFeePayload,
+  UpdateFeePayload,
 } from '../types';
 import {
   initialUserProfile,
@@ -1645,6 +1649,70 @@ class ApiService {
         ],
       };
     }
+  }
+
+  // ==========================================
+  // Fees & Dues API Methods
+  // ==========================================
+
+  /**
+   * Fetch Fees & Dues records.
+   * If student: returns only authenticated student's fee dues.
+   * If admin: returns all student fees with holistic statistics.
+   */
+  async getFees(params?: {
+    status?: string;
+    category?: string;
+    search?: string;
+    student_id?: string;
+  }): Promise<FeesApiResponse> {
+    const query = new URLSearchParams();
+    if (params?.status && params.status !== 'ALL') query.set('status', params.status);
+    if (params?.category && params.category !== 'ALL') query.set('category', params.category);
+    if (params?.student_id && params.student_id !== 'ALL') query.set('student_id', params.student_id);
+    if (params?.search) query.set('search', params.search);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.fetchJson<FeesApiResponse>(`/operations/fees${qs}`);
+  }
+
+  /**
+   * Admin: Create a new student fee record
+   */
+  async createFee(
+    payload: CreateFeePayload
+  ): Promise<{ success: boolean; message?: string; fee?: FeeRecord; error?: string }> {
+    return this.fetchJson<{ success: boolean; message?: string; fee?: FeeRecord }>('/operations/fees', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  /**
+   * Admin: Update fee payment amount, status, or due date
+   */
+  async updateFee(
+    feeId: number,
+    payload: UpdateFeePayload
+  ): Promise<{ success: boolean; message?: string; fee?: FeeRecord; error?: string }> {
+    return this.fetchJson<{ success: boolean; message?: string; fee?: FeeRecord }>(
+      `/operations/fees/${feeId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * Admin: Delete a fee record
+   */
+  async deleteFee(
+    feeId: number
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; message?: string }>(`/operations/fees/${feeId}`, {
+      method: 'DELETE',
+    });
   }
 }
 

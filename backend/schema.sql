@@ -283,4 +283,29 @@ CREATE INDEX IF NOT EXISTS idx_targeted_notif_target ON targeted_notifications(t
 CREATE INDEX IF NOT EXISTS idx_notif_reads_student ON notification_reads(student_id);
 CREATE INDEX IF NOT EXISTS idx_student_groups_student ON student_groups(student_id);
 
+-- 20. Student Fees & Dues Records (Fees Module)
+CREATE TABLE IF NOT EXISTS student_fees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    student_name TEXT NOT NULL,
+    student_identifier TEXT NOT NULL,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL CHECK(category IN ('TUITION', 'HOSTEL', 'MESS', 'LIBRARY', 'EXAM', 'LABORATORY', 'OTHER')),
+    term TEXT DEFAULT 'Fall 2023',
+    total_amount REAL NOT NULL CHECK(total_amount >= 0),
+    amount_paid REAL NOT NULL DEFAULT 0.0 CHECK(amount_paid >= 0),
+    due_date TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('PAID', 'PENDING', 'PARTIAL', 'OVERDUE')),
+    payment_method TEXT,
+    transaction_reference TEXT,
+    paid_at TIMESTAMP,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_student_fees_student ON student_fees(student_id);
+CREATE INDEX IF NOT EXISTS idx_student_fees_status ON student_fees(status);
+CREATE INDEX IF NOT EXISTS idx_student_fees_category ON student_fees(category);
+
 

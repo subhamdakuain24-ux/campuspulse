@@ -1,4 +1,12 @@
 import os
+import sys
+
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+deps_dir = os.path.abspath(os.path.join(backend_dir, "..", "backend_deps"))
+for p in (backend_dir, deps_dir):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
 from werkzeug.security import generate_password_hash
 from database import get_db_connection, init_db
 
@@ -707,9 +715,162 @@ def seed_database(db_file=None):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, tn)
 
+    # 18. Seed Student Fees & Dues Records (Fees Module)
+    fees_data = [
+        # Alex Johnson (Student 1)
+        (
+            1,
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "Fall 2023 Undergraduate Tuition Fee",
+            "TUITION",
+            "Fall 2023",
+            4500.00,
+            4500.00,
+            "2026-09-15",
+            "PAID",
+            "Online NetBanking",
+            "TXN-84729101",
+            "2026-09-12 14:32:10",
+            "Full tuition fee paid for Fall 2023 semester."
+        ),
+        (
+            2,
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "Oak Ridge Hall Accommodation & Amenities",
+            "HOSTEL",
+            "Fall 2023",
+            1800.00,
+            1800.00,
+            "2026-09-20",
+            "PAID",
+            "Campus UPI Gateway",
+            "TXN-84729102",
+            "2026-09-14 10:15:44",
+            "Single room occupancy in Oak Ridge Hall, Room 402."
+        ),
+        (
+            3,
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "Dining Hall Meal Plan (First Tranche)",
+            "MESS",
+            "Fall 2023",
+            1200.00,
+            800.00,
+            "2026-11-01",
+            "PARTIAL",
+            "Debit Card",
+            "TXN-84729103",
+            "2026-09-18 16:45:00",
+            "Partial instalment paid. Outstanding balance: $400.00 due by Nov 1."
+        ),
+        (
+            4,
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "Library Book Bank & Annual Security",
+            "LIBRARY",
+            "Academic Year 2023-2024",
+            150.00,
+            0.00,
+            "2026-09-01",
+            "OVERDUE",
+            None,
+            None,
+            None,
+            "Annual library security deposit past grace period. Please clear before term exams."
+        ),
+        (
+            5,
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "Computing Science Lab & Cloud GPU Credits",
+            "LABORATORY",
+            "Fall 2023",
+            350.00,
+            0.00,
+            "2026-11-15",
+            "PENDING",
+            None,
+            None,
+            None,
+            "Turing lab hardware kit and cloud compute allotment fee."
+        ),
+
+        # Jane Smith (Student 2)
+        (
+            6,
+            "2",
+            "Jane Smith",
+            "CP-992211",
+            "Fall 2023 Undergraduate Tuition Fee",
+            "TUITION",
+            "Fall 2023",
+            4500.00,
+            4500.00,
+            "2026-09-15",
+            "PAID",
+            "Bank Transfer",
+            "TXN-99221101",
+            "2026-09-11 11:20:00",
+            "Tuition fee processed via student education loan."
+        ),
+        (
+            7,
+            "2",
+            "Jane Smith",
+            "CP-992211",
+            "Maple Hall Residence Accommodation",
+            "HOSTEL",
+            "Fall 2023",
+            1750.00,
+            1750.00,
+            "2026-09-20",
+            "PAID",
+            "Online NetBanking",
+            "TXN-99221102",
+            "2026-09-15 09:40:00",
+            "Maple Hall double-occupancy room charges."
+        ),
+        (
+            8,
+            "2",
+            "Jane Smith",
+            "CP-992211",
+            "Electrical Engineering Laboratory Kit",
+            "LABORATORY",
+            "Fall 2023",
+            400.00,
+            0.00,
+            "2026-11-20",
+            "PENDING",
+            None,
+            None,
+            None,
+            "Microcontroller breadboard and oscilloscope components kit."
+        )
+    ]
+
+    for f_rec in fees_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO student_fees (
+                id, student_id, student_name, student_identifier,
+                title, category, term, total_amount, amount_paid,
+                due_date, status, payment_method, transaction_reference,
+                paid_at, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, f_rec)
+
     conn.commit()
     conn.close()
-    print("[Database] Fictional development data (Student, Teacher, Admin, Campus Requests, Mess Menu & Feedback, Targeted Notifications) successfully seeded into SQLite!")
+    print("[Database] Fictional development data (Student, Teacher, Admin, Campus Requests, Mess Menu & Feedback, Targeted Notifications, Fees & Dues) successfully seeded into SQLite!")
 
 
 

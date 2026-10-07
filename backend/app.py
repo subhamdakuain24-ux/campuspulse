@@ -1,11 +1,14 @@
 import os
 import sys
-from flask import Flask, jsonify
-from flask_cors import CORS
 
 backend_dir = os.path.dirname(os.path.abspath(__file__))
-if backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
+deps_dir = os.path.abspath(os.path.join(backend_dir, "..", "backend_deps"))
+for p in (backend_dir, deps_dir):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+from flask import Flask, jsonify
+from flask_cors import CORS
 
 from database import init_db, DB_PATH, get_db_connection
 from seed_data import seed_database

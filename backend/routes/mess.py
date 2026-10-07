@@ -413,7 +413,7 @@ def submit_mess_feedback():
 
     rating_val = data.get("rating")
     category_val = str(data.get("category") or "FOOD_QUALITY").strip().upper()
-    comments_val = str(data.get("comments") or "").strip()
+    comments_val = str(data.get("comments") or data.get("comment") or "").strip()
     meal_type_val = str(data.get("meal_type") or "GENERAL").strip().upper()
     meal_date_val = str(data.get("meal_date") or "").strip()
 

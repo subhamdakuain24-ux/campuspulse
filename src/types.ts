@@ -8,7 +8,8 @@ export type ScreenId =
   | 'notifications'
   | 'operations'
   | 'profile'
-  | 'ai-chat';
+  | 'ai-chat'
+  | 'fees';
 
 export type UserRole = 'Student' | 'Teacher' | 'Admin';
 
@@ -387,5 +388,96 @@ export interface CreateMessMenuItemPayload {
   special_note?: string;
   date?: string;
 }
+
+// ==========================================
+// Fees & Dues Module Types
+// ==========================================
+
+export type FeeCategory =
+  | 'TUITION'
+  | 'HOSTEL'
+  | 'MESS'
+  | 'LIBRARY'
+  | 'EXAM'
+  | 'LABORATORY'
+  | 'OTHER';
+
+export type FeeStatus = 'PAID' | 'PENDING' | 'PARTIAL' | 'OVERDUE';
+
+export interface FeeRecord {
+  id: number;
+  student_id: string;
+  student_name: string;
+  student_identifier: string;
+  title: string;
+  category: FeeCategory;
+  category_label?: string;
+  term?: string;
+  total_amount: number;
+  amount_paid: number;
+  outstanding_amount: number;
+  due_date: string;
+  status: FeeStatus;
+  is_overdue?: boolean;
+  payment_method?: string;
+  transaction_reference?: string;
+  paid_at?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StudentFeesSummary {
+  total_fees: number;
+  amount_paid: number;
+  outstanding_amount: number;
+  overdue_amount: number;
+  status_counts: Record<string, number>;
+}
+
+export interface AdminFeesSummary {
+  total_assessed: number;
+  total_collected: number;
+  total_outstanding: number;
+  total_overdue: number;
+  overdue_count: number;
+  status_counts: Record<string, number>;
+}
+
+export interface FeesApiResponse {
+  success: boolean;
+  role: string;
+  count: number;
+  fees: FeeRecord[];
+  summary: StudentFeesSummary | AdminFeesSummary;
+  error?: string;
+}
+
+export interface CreateFeePayload {
+  student_id: string;
+  title: string;
+  category: FeeCategory;
+  term?: string;
+  total_amount: number;
+  amount_paid?: number;
+  due_date: string;
+  status?: FeeStatus;
+  payment_method?: string;
+  transaction_reference?: string;
+  notes?: string;
+}
+
+export interface UpdateFeePayload {
+  title?: string;
+  category?: FeeCategory;
+  total_amount?: number;
+  amount_paid?: number;
+  due_date?: string;
+  status?: FeeStatus;
+  payment_method?: string;
+  transaction_reference?: string;
+  notes?: string;
+}
+
 
 
