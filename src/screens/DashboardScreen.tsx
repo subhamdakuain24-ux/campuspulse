@@ -16,16 +16,32 @@ import {
   FileCheck2,
   DoorOpen,
   CreditCard,
+  BookMarked,
+  PackageSearch,
+  CalendarRange,
 } from 'lucide-react';
-import { ScreenId } from '../types';
+import { ScreenId, UserProfile } from '../types';
 import { api, DashboardApiData } from '../services/api';
 import { initialUserProfile, attendanceSubjects, todayClasses, upcomingExams, initialAssignments } from '../data/mockData';
+import { AdminDashboardScreen } from './AdminDashboardScreen';
+import { TeacherDashboardScreen } from './TeacherDashboardScreen';
 
 interface DashboardScreenProps {
+  user?: UserProfile;
   onNavigate: (screen: ScreenId) => void;
 }
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNavigate }) => {
+  // If user is Admin, render the Admin Dashboard
+  if (user?.role === 'Admin') {
+    return <AdminDashboardScreen user={user} onNavigate={onNavigate} />;
+  }
+
+  // If user is Teacher, render the Teacher Dashboard
+  if (user?.role === 'Teacher') {
+    return <TeacherDashboardScreen user={user} onNavigate={onNavigate} />;
+  }
+
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardApiData>({
@@ -591,6 +607,34 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
           <div className="flex flex-wrap items-center gap-2">
             <button
+              onClick={() => onNavigate('lost-found')}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <PackageSearch className="w-3.5 h-3.5 text-amber-400" />
+              Lost & Found
+            </button>
+            <button
+              onClick={() => onNavigate('events')}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <CalendarRange className="w-3.5 h-3.5 text-purple-400" />
+              Event Conduction
+            </button>
+            <button
+              onClick={() => onNavigate('library')}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+              Library & Books
+            </button>
+            <button
+              onClick={() => onNavigate('papers')}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <BookMarked className="w-3.5 h-3.5 text-blue-400" />
+              Exam Papers
+            </button>
+            <button
               onClick={() => onNavigate('fees')}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
@@ -599,10 +643,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             </button>
             <button
               onClick={() => onNavigate('operations')}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
-              Open Operations Desk
-              <ChevronRight className="w-4 h-4" />
+              Operations Desk
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

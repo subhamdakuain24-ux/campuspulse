@@ -308,4 +308,200 @@ CREATE INDEX IF NOT EXISTS idx_student_fees_student ON student_fees(student_id);
 CREATE INDEX IF NOT EXISTS idx_student_fees_status ON student_fees(status);
 CREATE INDEX IF NOT EXISTS idx_student_fees_category ON student_fees(category);
 
+-- 21. Previous Year Papers (Feature 1)
+CREATE TABLE IF NOT EXISTS previous_year_papers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    subject_code TEXT,
+    department TEXT NOT NULL,
+    semester INTEGER NOT NULL CHECK(semester >= 1 AND semester <= 8),
+    exam_type TEXT NOT NULL, -- 'Mid-Term' | 'End-Term' | 'Supplementary' | 'Model Paper'
+    year INTEGER NOT NULL, -- 2024, 2023, 2022, etc.
+    resource_url TEXT NOT NULL, -- safe verified paper URL/resource reference
+    file_size TEXT DEFAULT '1.5 MB',
+    download_count INTEGER DEFAULT 0,
+    uploaded_by TEXT DEFAULT 'Examination Cell',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_papers_dept_sem ON previous_year_papers(department, semester);
+CREATE INDEX IF NOT EXISTS idx_papers_year ON previous_year_papers(year);
+CREATE INDEX IF NOT EXISTS idx_papers_subject ON previous_year_papers(subject);
+
+-- 22. Library Books Catalog (Feature 2)
+CREATE TABLE IF NOT EXISTS library_books (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL,
+    isbn TEXT UNIQUE NOT NULL,
+    category TEXT NOT NULL, -- e.g. 'Computer Science', 'Mathematics', 'Electronics', 'Mechanical', 'Reference'
+    department TEXT DEFAULT 'All',
+    edition TEXT DEFAULT '1st Edition',
+    publisher TEXT,
+    publish_year INTEGER,
+    location TEXT DEFAULT 'Central Library - Rack A',
+    total_copies INTEGER NOT NULL DEFAULT 1 CHECK(total_copies >= 0),
+    available_copies INTEGER NOT NULL DEFAULT 1 CHECK(available_copies >= 0),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_books_category ON library_books(category);
+CREATE INDEX IF NOT EXISTS idx_books_isbn ON library_books(isbn);
+
+-- 23. Book Issue / Return Requests & Records (Feature 2)
+CREATE TABLE IF NOT EXISTS book_issues (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id INTEGER NOT NULL REFERENCES library_books(id) ON DELETE RESTRICT,
+    student_id TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    student_identifier TEXT NOT NULL,
+    request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    issue_date TEXT, -- YYYY-MM-DD
+    due_date TEXT,   -- YYYY-MM-DD
+    return_date TEXT, -- YYYY-MM-DD
+    status TEXT NOT NULL CHECK(status IN ('REQUESTED', 'ISSUED', 'RETURNED', 'REJECTED')) DEFAULT 'REQUESTED',
+    notes TEXT,
+    admin_remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_book_issues_student ON book_issues(student_id);
+CREATE INDEX IF NOT EXISTS idx_book_issues_book ON book_issues(book_id);
+CREATE INDEX IF NOT EXISTS idx_book_issues_status ON book_issues(status);
+
+-- 24. Student Library Cards (Feature 3)
+CREATE TABLE IF NOT EXISTS library_cards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT UNIQUE NOT NULL,
+    student_name TEXT NOT NULL,
+    student_identifier TEXT NOT NULL,
+    card_number TEXT UNIQUE NOT NULL,
+    issue_date TEXT NOT NULL,
+    valid_until TEXT NOT NULL, -- YYYY-MM-DD
+    status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'EXPIRED', 'SUSPENDED')) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_library_cards_student ON library_cards(student_id);
+
+-- 25. Library Card Renewal Requests (Feature 3)
+CREATE TABLE IF NOT EXISTS library_card_renewals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    student_identifier TEXT NOT NULL,
+    current_expiry_date TEXT NOT NULL,
+    requested_extension_months INTEGER DEFAULT 12,
+    reason TEXT,
+    status TEXT NOT NULL CHECK(status IN ('PENDING', 'APPROVED', 'REJECTED', 'RENEWED')) DEFAULT 'PENDING',
+    new_expiry_date TEXT,
+    admin_notes TEXT,
+    processed_by TEXT,
+    processed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_card_renewals_student ON library_card_renewals(student_id);
+CREATE INDEX IF NOT EXISTS idx_card_renewals_status ON library_card_renewals(status);
+
+-- 26. Lost & Found Notices
+CREATE TABLE IF NOT EXISTS lost_found_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    public_id TEXT UNIQUE NOT NULL,
+    notice_type TEXT NOT NULL CHECK(notice_type IN ('LOST', 'FOUND')),
+    item_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    location TEXT NOT NULL,
+    item_date TEXT NOT NULL, -- YYYY-MM-DD
+    contact_info TEXT NOT NULL,
+    image_url TEXT,
+    student_id TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    student_identifier TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'CLAIMED', 'RESOLVED', 'CLOSED')) DEFAULT 'ACTIVE',
+    admin_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_lf_notice_type ON lost_found_items(notice_type);
+CREATE INDEX IF NOT EXISTS idx_lf_category ON lost_found_items(category);
+CREATE INDEX IF NOT EXISTS idx_lf_status ON lost_found_items(status);
+CREATE INDEX IF NOT EXISTS idx_lf_student ON lost_found_items(student_id);
+
+-- 27. Lost & Found Activity / History Log
+CREATE TABLE IF NOT EXISTS lost_found_activities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL REFERENCES lost_found_items(id) ON DELETE CASCADE,
+    actor_id TEXT NOT NULL,
+    actor_name TEXT NOT NULL,
+    actor_role TEXT NOT NULL,
+    action TEXT NOT NULL,
+    old_status TEXT,
+    new_status TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_lf_activities_item ON lost_found_activities(item_id);
+
+-- 28. Event Conduction Applications
+CREATE TABLE IF NOT EXISTS event_applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    application_no TEXT UNIQUE NOT NULL,
+    student_id TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    student_identifier TEXT NOT NULL,
+    department TEXT,
+    event_name TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    description TEXT NOT NULL,
+    proposed_date TEXT NOT NULL, -- YYYY-MM-DD
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    venue TEXT NOT NULL,
+    expected_participants INTEGER NOT NULL DEFAULT 50,
+    organizing_body TEXT NOT NULL,
+    faculty_coordinator TEXT NOT NULL,
+    additional_requirements TEXT,
+    status TEXT NOT NULL CHECK(status IN ('PENDING', 'APPROVED', 'REJECTED', 'COMPLETED')) DEFAULT 'PENDING',
+    admin_remarks TEXT,
+    approved_venue TEXT,
+    processed_by TEXT,
+    processed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_apps_student ON event_applications(student_id);
+CREATE INDEX IF NOT EXISTS idx_event_apps_status ON event_applications(status);
+CREATE INDEX IF NOT EXISTS idx_event_apps_date ON event_applications(proposed_date);
+CREATE INDEX IF NOT EXISTS idx_event_apps_venue ON event_applications(venue);
+CREATE INDEX IF NOT EXISTS idx_event_apps_dept ON event_applications(organizing_body);
+
+-- 29. Event Conduction Activity / Audit Log
+CREATE TABLE IF NOT EXISTS event_application_activities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    application_id INTEGER NOT NULL REFERENCES event_applications(id) ON DELETE CASCADE,
+    actor_id TEXT NOT NULL,
+    actor_name TEXT NOT NULL,
+    actor_role TEXT NOT NULL,
+    action TEXT NOT NULL,
+    old_status TEXT,
+    new_status TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_activities_app ON event_application_activities(application_id);
+
+
 

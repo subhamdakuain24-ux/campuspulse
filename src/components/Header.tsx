@@ -24,16 +24,30 @@ export const Header: React.FC<HeaderProps> = ({
 
   const screenNames: Record<ScreenId, string> = {
     login: 'Login',
-    dashboard: 'Student Dashboard',
+    dashboard:
+      user.role === 'Admin'
+        ? 'Admin Dashboard'
+        : user.role === 'Teacher'
+        ? 'Teacher Dashboard'
+        : 'Student Dashboard',
     attendance: 'Attendance Tracker',
     exams: 'Examination Center',
     timetable: 'Weekly Timetable',
     assignments: 'Coursework & Assignments',
     operations: 'Campus Operations',
     notifications: 'Notifications & Alerts',
-    profile: 'Student Profile',
+    profile:
+      user.role === 'Admin'
+        ? 'Admin Profile'
+        : user.role === 'Teacher'
+        ? 'Faculty Profile'
+        : 'Student Profile',
     'ai-chat': 'AI Academic Assistant',
     fees: user.role === 'Admin' ? 'Fees & Dues Management' : 'Fees & Dues',
+    papers: 'Previous Year Question Papers',
+    library: user.role === 'Admin' ? 'Library & Circulation Desk' : 'Library Services & Books',
+    'lost-found': user.role === 'Admin' ? 'Lost & Found Management Desk' : 'Lost & Found Center',
+    events: user.role === 'Admin' ? 'Event Conduction Approvals' : 'Event Conduction Applications',
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {

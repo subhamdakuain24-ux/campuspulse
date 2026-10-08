@@ -15,6 +15,7 @@ def seed_database(db_file=None):
     init_db(db_file)
     conn = get_db_connection(db_file)
     cur = conn.cursor()
+    cur.execute("PRAGMA foreign_keys = OFF;")
 
     # 1. Seed Student
     cur.execute("""
@@ -767,7 +768,7 @@ def seed_database(db_file=None):
             "Debit Card",
             "TXN-84729103",
             "2026-09-18 16:45:00",
-            "Partial instalment paid. Outstanding balance: $400.00 due by Nov 1."
+            "Partial instalment paid. Outstanding balance: ₹400.00 due by Nov 1."
         ),
         (
             4,
@@ -868,9 +869,689 @@ def seed_database(db_file=None):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, f_rec)
 
+    # 13. Previous Year Question Papers (Feature 1)
+    papers_data = [
+        (
+            1,
+            "CS301 Data Structures & Algorithms - End-Term Examination (Dec 2023)",
+            "Data Structures & Algorithms",
+            "CS301",
+            "School of Computing & Data Sciences",
+            3,
+            "End-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/CS301_EndTerm_2023.pdf",
+            "1.8 MB",
+            142,
+            "Examination Cell"
+        ),
+        (
+            2,
+            "CS301 Data Structures & Algorithms - Mid-Term Examination (Oct 2023)",
+            "Data Structures & Algorithms",
+            "CS301",
+            "School of Computing & Data Sciences",
+            3,
+            "Mid-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/CS301_MidTerm_2023.pdf",
+            "980 KB",
+            89,
+            "Examination Cell"
+        ),
+        (
+            3,
+            "CS304 Database Management Systems - End-Term Examination (Dec 2023)",
+            "Database Management Systems",
+            "CS304",
+            "School of Computing & Data Sciences",
+            4,
+            "End-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/CS304_EndTerm_2023.pdf",
+            "2.1 MB",
+            210,
+            "Examination Cell"
+        ),
+        (
+            4,
+            "CS304 Database Management Systems - Mid-Term Examination (Oct 2023)",
+            "Database Management Systems",
+            "CS304",
+            "School of Computing & Data Sciences",
+            4,
+            "Mid-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/CS304_MidTerm_2023.pdf",
+            "1.1 MB",
+            104,
+            "Examination Cell"
+        ),
+        (
+            5,
+            "CS308 Computer Networks - End-Term Examination (Dec 2023)",
+            "Computer Networks",
+            "CS308",
+            "School of Computing & Data Sciences",
+            5,
+            "End-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/CS308_EndTerm_2023.pdf",
+            "1.7 MB",
+            178,
+            "Examination Cell"
+        ),
+        (
+            6,
+            "CS308 Computer Networks - Mid-Term Examination (Oct 2023)",
+            "Computer Networks",
+            "CS308",
+            "School of Computing & Data Sciences",
+            5,
+            "Mid-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/CS308_MidTerm_2023.pdf",
+            "850 KB",
+            76,
+            "Examination Cell"
+        ),
+        (
+            7,
+            "MATH302 Discrete Mathematics - End-Term Examination (May 2023)",
+            "Discrete Mathematics",
+            "MATH302",
+            "Basic Sciences & Humanities",
+            3,
+            "End-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/MATH302_EndTerm_2023.pdf",
+            "1.4 MB",
+            230,
+            "Examination Cell"
+        ),
+        (
+            8,
+            "MATH302 Discrete Mathematics - Mid-Term Examination (Mar 2023)",
+            "Discrete Mathematics",
+            "MATH302",
+            "Basic Sciences & Humanities",
+            3,
+            "Mid-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/MATH302_MidTerm_2023.pdf",
+            "720 KB",
+            95,
+            "Examination Cell"
+        ),
+        (
+            9,
+            "CS312 Software Engineering & Agile - End-Term (Dec 2022)",
+            "Software Engineering",
+            "CS312",
+            "School of Computing & Data Sciences",
+            5,
+            "End-Term",
+            2022,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/CS312_EndTerm_2022.pdf",
+            "1.9 MB",
+            165,
+            "Examination Cell"
+        ),
+        (
+            10,
+            "CS315 Web Technologies & Cloud - End-Term (Dec 2023)",
+            "Web Technologies & Cloud",
+            "CS315",
+            "School of Computing & Data Sciences",
+            5,
+            "End-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/CS315_EndTerm_2023.pdf",
+            "2.3 MB",
+            194,
+            "Examination Cell"
+        ),
+        (
+            11,
+            "EE201 Basic Electrical Circuits - End-Term (May 2023)",
+            "Electrical Circuits",
+            "EE201",
+            "School of Engineering",
+            2,
+            "End-Term",
+            2023,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/EE201_EndTerm_2023.pdf",
+            "1.6 MB",
+            112,
+            "Examination Cell"
+        ),
+        (
+            12,
+            "ME102 Engineering Mechanics & Statics - End-Term (May 2022)",
+            "Engineering Mechanics",
+            "ME102",
+            "School of Engineering",
+            1,
+            "End-Term",
+            2022,
+            "https://cdn.jsdelivr.net/gh/campuspulse/resources@main/papers/ME102_EndTerm_2022.pdf",
+            "2.0 MB",
+            88,
+            "Examination Cell"
+        )
+    ]
+
+    for p in papers_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO previous_year_papers (
+                id, title, subject, subject_code, department, semester,
+                exam_type, year, resource_url, file_size, download_count, uploaded_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, p)
+
+    # 14. Library Books Catalog (Feature 2)
+    books_data = [
+        (
+            1,
+            "Introduction to Algorithms (4th Edition)",
+            "Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein",
+            "978-0262046305",
+            "Computer Science",
+            "School of Computing & Data Sciences",
+            "4th Edition",
+            "MIT Press",
+            2022,
+            "Central Library - Stack Room A, Shelf 3",
+            8,
+            5,
+            "Comprehensive textbook covering algorithmic paradigms, graph algorithms, dynamic programming, and complexity theory."
+        ),
+        (
+            2,
+            "Computer Networks: A Systems Approach",
+            "Larry L. Peterson, Bruce S. Davie",
+            "978-0123850591",
+            "Computer Science",
+            "School of Computing & Data Sciences",
+            "5th Edition",
+            "Morgan Kaufmann",
+            2021,
+            "Central Library - Stack Room A, Shelf 7",
+            6,
+            3,
+            "In-depth analysis of internet protocols, layering architecture, TCP/IP congestion control, and wireless networks."
+        ),
+        (
+            3,
+            "Operating System Concepts",
+            "Abraham Silberschatz, Peter B. Galvin, Greg Gagne",
+            "978-1119800361",
+            "Computer Science",
+            "School of Computing & Data Sciences",
+            "10th Edition",
+            "Wiley",
+            2021,
+            "Central Library - Stack Room A, Shelf 5",
+            7,
+            4,
+            "The foundational dinosaur book on OS kernel design, process synchronization, virtual memory, and file systems."
+        ),
+        (
+            4,
+            "Database System Concepts",
+            "Abraham Silberschatz, Henry F. Korth, S. Sudarshan",
+            "978-0078022159",
+            "Computer Science",
+            "School of Computing & Data Sciences",
+            "7th Edition",
+            "McGraw-Hill",
+            2020,
+            "Central Library - Stack Room B, Shelf 2",
+            10,
+            6,
+            "Definitive guide to relational models, SQL query optimization, transaction processing, ACID properties, and indexing."
+        ),
+        (
+            5,
+            "Discrete Mathematics and Its Applications",
+            "Kenneth H. Rosen",
+            "978-1259676512",
+            "Mathematics",
+            "Basic Sciences & Humanities",
+            "8th Edition",
+            "McGraw-Hill",
+            2019,
+            "Central Library - Stack Room C, Shelf 1",
+            9,
+            6,
+            "Logic, sets, relations, combinatorics, graph theory, trees, and algebraic structures for computer science."
+        ),
+        (
+            6,
+            "Artificial Intelligence: A Modern Approach",
+            "Stuart Russell, Peter Norvig",
+            "978-0134610993",
+            "Computer Science",
+            "School of Computing & Data Sciences",
+            "4th Edition",
+            "Pearson",
+            2020,
+            "Central Library - Stack Room A, Shelf 9",
+            5,
+            2,
+            "The leading reference in artificial intelligence, search algorithms, knowledge representation, and probabilistic reasoning."
+        ),
+        (
+            7,
+            "Design Patterns: Elements of Reusable Object-Oriented Software",
+            "Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides",
+            "978-0201633610",
+            "Computer Science",
+            "School of Computing & Data Sciences",
+            "1st Edition",
+            "Addison-Wesley",
+            2018,
+            "Central Library - Stack Room B, Shelf 4",
+            4,
+            0,
+            "Classic Gang of Four reference covering creational, structural, and behavioral design patterns in object-oriented systems."
+        ),
+        (
+            8,
+            "Electric Circuits (11th Edition)",
+            "James W. Nilsson, Susan Riedel",
+            "978-0134746968",
+            "Electrical",
+            "School of Engineering",
+            "11th Edition",
+            "Pearson",
+            2019,
+            "Central Library - Stack Room D, Shelf 3",
+            6,
+            4,
+            "Circuit analysis techniques, Ohm's law, nodal and mesh analysis, Laplace transforms, and frequency response."
+        )
+    ]
+
+    for b in books_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO library_books (
+                id, title, author, isbn, category, department,
+                edition, publisher, publish_year, location,
+                total_copies, available_copies, description
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, b)
+
+    # 15. Book Issues (Feature 2)
+    issues_data = [
+        (
+            1,
+            2, # Computer Networks
+            "STU-2023-8941",
+            "Alex Johnson",
+            "CP-847291",
+            "2026-09-28 10:15:00",
+            "2026-09-29",
+            "2026-10-20",
+            None,
+            "ISSUED",
+            "Required for CS308 semester coursework and lab exercises.",
+            "Issued at Counter 2 by Librarian."
+        ),
+        (
+            2,
+            4, # Database System Concepts
+            "STU-2023-8941",
+            "Alex Johnson",
+            "CP-847291",
+            "2026-09-10 14:20:00",
+            "2026-09-11",
+            "2026-09-25",
+            "2026-09-24",
+            "RETURNED",
+            "Reference for SQL normalization project.",
+            "Returned in pristine condition."
+        ),
+        (
+            3,
+            1, # Introduction to Algorithms
+            "STU-2023-8941",
+            "Alex Johnson",
+            "CP-847291",
+            "2026-10-06 09:30:00",
+            None,
+            None,
+            None,
+            "REQUESTED",
+            "Preparation for upcoming midterm exam on dynamic programming.",
+            None
+        ),
+        (
+            4,
+            8, # Electric Circuits
+            "2",
+            "Jane Smith",
+            "CP-992211",
+            "2026-09-25 11:00:00",
+            "2026-09-26",
+            "2026-10-17",
+            None,
+            "ISSUED",
+            "EE201 laboratory circuit assignments.",
+            "Issued at Counter 1."
+        )
+    ]
+
+    for iss in issues_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO book_issues (
+                id, book_id, student_id, student_name, student_identifier,
+                request_date, issue_date, due_date, return_date,
+                status, notes, admin_remarks
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, iss)
+
+    # Also insert issue for student_id="1" to guarantee both student_id representations map
+    cur.execute("""
+        INSERT OR IGNORE INTO book_issues (
+            book_id, student_id, student_name, student_identifier,
+            request_date, issue_date, due_date, return_date,
+            status, notes, admin_remarks
+        ) VALUES (
+            2, '1', 'Alex Johnson', 'CP-847291',
+            '2026-09-28 10:15:00', '2026-09-29', '2026-10-20', NULL,
+            'ISSUED', 'Required for CS308 semester coursework.', 'Counter 2'
+        )
+    """)
+
+    # 16. Student Library Cards (Feature 3)
+    cards_data = [
+        (
+            1,
+            "STU-2023-8941",
+            "Alex Johnson",
+            "CP-847291",
+            "LC-2023-847291",
+            "2023-08-01",
+            "2024-12-31",
+            "ACTIVE"
+        ),
+        (
+            2,
+            "1",
+            "Alex Johnson",
+            "CP-847291",
+            "LC-2023-847291-ALT",
+            "2023-08-01",
+            "2024-12-31",
+            "ACTIVE"
+        ),
+        (
+            3,
+            "2",
+            "Jane Smith",
+            "CP-992211",
+            "LC-2023-992211",
+            "2023-08-01",
+            "2024-12-31",
+            "ACTIVE"
+        )
+    ]
+
+    for c in cards_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO library_cards (
+                id, student_id, student_name, student_identifier,
+                card_number, issue_date, valid_until, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, c)
+
+    # 17. Library Card Renewal Requests (Feature 3)
+    renewals_data = [
+        (
+            1,
+            "STU-2023-8941",
+            "Alex Johnson",
+            "CP-847291",
+            "2024-12-31",
+            12,
+            "Extending library privileges for final-year project and competitive programming research.",
+            "PENDING",
+            None,
+            None,
+            None
+        ),
+        (
+            2,
+            "2",
+            "Jane Smith",
+            "CP-992211",
+            "2023-12-31",
+            12,
+            "Annual academic year renewal for Semester 4 coursework.",
+            "RENEWED",
+            "2024-12-31",
+            "Approved by Chief Librarian.",
+            "Dr. Marcus Carter"
+        )
+    ]
+
+    for ren in renewals_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO library_card_renewals (
+                id, student_id, student_name, student_identifier,
+                current_expiry_date, requested_extension_months, reason,
+                status, new_expiry_date, admin_notes, processed_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, ren)
+
+    # 18. Lost & Found Notices
+    lf_data = [
+        (
+            1,
+            "LF-2024-0001",
+            "LOST",
+            "Blue HP Laptop Charger (65W Type-C)",
+            "Electronics",
+            "Left behind near window desk #14 on 2nd floor reading hall. It has a small yellow tape on the adapter.",
+            "Central Library 2nd Floor Reading Room Desk 14",
+            "2024-10-06",
+            "alex.johnson@campus.edu | Room 304 Ramanujan Hostel",
+            None,
+            "STU-2023-8941",
+            "Alex Johnson",
+            "CP-847291",
+            "ACTIVE",
+            None
+        ),
+        (
+            2,
+            "LF-2024-0002",
+            "FOUND",
+            "Casio FX-991EX ClassWiz Calculator",
+            "Electronics",
+            "Found on third row bench after Calculus lecture. Has initials 'S.M.' scratched on the back cover.",
+            "LH-201 Lecture Hall, 3rd row",
+            "2024-10-07",
+            "Security Desk Main Gate or Intercom Ext. 402",
+            None,
+            "2",
+            "Jane Smith",
+            "CP-992211",
+            "ACTIVE",
+            None
+        ),
+        (
+            3,
+            "LF-2024-0003",
+            "LOST",
+            "Brown Leather Wallet with Metro Card",
+            "Bags & Wallets",
+            "Dark brown leather wallet containing university ID and Delhi Metro card. Cash not important, please return cards.",
+            "Central Cafeteria Food Court near counter 2",
+            "2024-10-04",
+            "alex.johnson@campus.edu | +91 98765 43210",
+            None,
+            "STU-2023-8941",
+            "Alex Johnson",
+            "CP-847291",
+            "CLAIMED",
+            "Handed back to owner after identity verification at cafeteria lost box."
+        ),
+        (
+            4,
+            "LF-2024-0004",
+            "FOUND",
+            "Set of 3 Keys with Red Honda Keychain",
+            "Keys & Access Cards",
+            "Discovered near bicycle parking stand by gardening staff. Includes two brass keys and one bike ignition key.",
+            "Engineering Block A Parking Lot Stand 3",
+            "2024-10-05",
+            "Admin Reception Window 2 (Mr. Ramesh)",
+            None,
+            "admin-1",
+            "Dr. Robert Vance",
+            "ADMIN-001",
+            "RESOLVED",
+            "Claimed by Mechanical Dept student on Oct 6."
+        )
+    ]
+
+    for lf in lf_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO lost_found_items (
+                id, public_id, notice_type, item_name, category,
+                description, location, item_date, contact_info, image_url,
+                student_id, student_name, student_identifier, status, admin_notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, lf)
+
+    # Lost & Found activities
+    lf_activities = [
+        (1, 1, "STU-2023-8941", "Alex Johnson", "student", "CREATED", None, "ACTIVE", "Notice published for lost HP charger"),
+        (2, 2, "2", "Jane Smith", "student", "CREATED", None, "ACTIVE", "Notice published for found scientific calculator"),
+        (3, 3, "STU-2023-8941", "Alex Johnson", "student", "CREATED", None, "ACTIVE", "Notice published for lost wallet"),
+        (4, 3, "admin-1", "Dr. Robert Vance", "admin", "STATUS_UPDATE", "ACTIVE", "CLAIMED", "Owner claimed item from cafeteria desk"),
+        (5, 4, "admin-1", "Dr. Robert Vance", "admin", "CREATED", None, "ACTIVE", "Notice published for found keys"),
+        (6, 4, "admin-1", "Dr. Robert Vance", "admin", "STATUS_UPDATE", "ACTIVE", "RESOLVED", "Keys verified and handed over")
+    ]
+
+    for lfa in lf_activities:
+        cur.execute("""
+            INSERT OR REPLACE INTO lost_found_activities (
+                id, item_id, actor_id, actor_name, actor_role, action,
+                old_status, new_status, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, lfa)
+
+    # 19. Event Conduction Applications
+    events_data = [
+        (
+            1,
+            "EVT-2024-0001",
+            "STU-2023-8941",
+            "Alex Johnson",
+            "CP-847291",
+            "School of Computing & Data Sciences",
+            "Annual HackPulse 2024 - 24hr Campus Hackathon",
+            "Hackathon & Coding",
+            "Flagship 24-hour inter-department hackathon focused on AI, Web3, and Sustainable Tech. Will feature 40 teams, mentoring rounds, and keynote tech sessions.",
+            "2024-11-15",
+            "09:00 AM",
+            "05:00 PM",
+            "Main University Auditorium (Capacity: 1200)",
+            200,
+            "Coding & Innovation Society",
+            "Dr. Elena Rostova (+91 98765 11223)",
+            "High-speed Wi-Fi access point, 20 extra power extension boards, projector and sound mic.",
+            "APPROVED",
+            "Approved by Dean Student Affairs. Facilities team instructed for uninterrupted power.",
+            "Main University Auditorium (Capacity: 1200)",
+            "Dr. Robert Vance",
+            "2024-10-06 14:30:00"
+        ),
+        (
+            2,
+            "EVT-2024-0002",
+            "STU-2023-8941",
+            "Alex Johnson",
+            "CP-847291",
+            "School of Computing & Data Sciences",
+            "Guest Workshop on Distributed Systems & Cloud Microservices",
+            "Workshop / Hands-on",
+            "Interactive 4-hour hands-on workshop conducted by industry engineers on Kubernetes, gRPC, and high-concurrency architecture.",
+            "2024-11-28",
+            "02:00 PM",
+            "06:00 PM",
+            "APJ Abdul Kalam Seminar Hall (Capacity: 250)",
+            120,
+            "ACM Student Chapter",
+            "Prof. Ananya Sen (CS Department)",
+            "Audio-visual system, dual wireless microphones, attendee seating layout.",
+            "PENDING",
+            None,
+            None,
+            None,
+            None
+        ),
+        (
+            3,
+            "EVT-2024-0003",
+            "2",
+            "Jane Smith",
+            "CP-992211",
+            "School of Engineering",
+            "Inter-Hostel Badminton & Table Tennis Tournament",
+            "Sports",
+            "Annual semester sports championship between Ramanujan Hostel, Aryabhatta Hostel, and Gargi Hostel.",
+            "2024-10-25",
+            "04:30 PM",
+            "09:00 PM",
+            "Indoor Sports Complex (Capacity: 500)",
+            80,
+            "Campus Sports Council",
+            "Coach Rajesh Verma",
+            "Court floodlights until 9:30 PM, official scoreboards, first aid kit on standby.",
+            "APPROVED",
+            "Approved. Sports officer notified.",
+            "Indoor Sports Complex (Capacity: 500)",
+            "Dr. Robert Vance",
+            "2024-10-05 11:00:00"
+        )
+    ]
+
+    for ev in events_data:
+        cur.execute("""
+            INSERT OR REPLACE INTO event_applications (
+                id, application_no, student_id, student_name, student_identifier,
+                department, event_name, event_type, description, proposed_date,
+                start_time, end_time, venue, expected_participants, organizing_body,
+                faculty_coordinator, additional_requirements, status, admin_remarks,
+                approved_venue, processed_by, processed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, ev)
+
+    # Event activities
+    event_activities = [
+        (1, 1, "STU-2023-8941", "Alex Johnson", "student", "SUBMITTED", None, "PENDING", "Application submitted by Coding & Innovation Society"),
+        (2, 1, "admin-1", "Dr. Robert Vance", "admin", "STATUS_APPROVED", "PENDING", "APPROVED", "Approved by Dean Student Affairs with Main Auditorium venue"),
+        (3, 2, "STU-2023-8941", "Alex Johnson", "student", "SUBMITTED", None, "PENDING", "Application submitted by ACM Student Chapter"),
+        (4, 3, "2", "Jane Smith", "student", "SUBMITTED", None, "PENDING", "Application submitted by Campus Sports Council"),
+        (5, 3, "admin-1", "Dr. Robert Vance", "admin", "STATUS_APPROVED", "PENDING", "APPROVED", "Approved for Indoor Sports Complex")
+    ]
+
+    for ea in event_activities:
+        cur.execute("""
+            INSERT OR REPLACE INTO event_application_activities (
+                id, application_id, actor_id, actor_name, actor_role, action,
+                old_status, new_status, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, ea)
+
+    cur.execute("PRAGMA foreign_keys = ON;")
     conn.commit()
     conn.close()
-    print("[Database] Fictional development data (Student, Teacher, Admin, Campus Requests, Mess Menu & Feedback, Targeted Notifications, Fees & Dues) successfully seeded into SQLite!")
+    print("[Database] Fictional development data (Student, Teacher, Admin, Campus Requests, Mess Menu & Feedback, Targeted Notifications, Fees & Dues, Previous Year Papers, Library Books, Issues, Cards & Renewals, Lost & Found, Event Conduction Applications) successfully seeded into SQLite!")
 
 
 

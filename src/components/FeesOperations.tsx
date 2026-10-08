@@ -8,7 +8,7 @@ import {
   RefreshCw,
   Search,
   Filter,
-  DollarSign,
+  IndianRupee,
   Calendar,
   Building,
   BookOpen,
@@ -274,10 +274,13 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
     }
   };
 
-  // Helper formatting currency
+  // Helper formatting currency in Indian Rupees (INR)
   const formatCur = (val: number | undefined) => {
     const num = Number(val || 0);
-    return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `₹${num.toLocaleString('en-IN', {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: Number.isInteger(num) ? 0 : 2,
+    })}`;
   };
 
   return (
@@ -724,7 +727,7 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    Total Amount ($) <span className="text-rose-500">*</span>
+                    Total Amount (₹) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -741,7 +744,7 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Initial Amount Paid ($)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Initial Amount Paid (₹)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -854,7 +857,7 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    Amount Paid ($) <span className="text-rose-500">*</span>
+                    Amount Paid (₹) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"

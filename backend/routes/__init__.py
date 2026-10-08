@@ -2,4 +2,4 @@ from flask import Blueprint
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
-from . import students, auth, operations, mess, notifications, fees
+from . import students, auth, operations, mess, notifications, fees, library, lost_found, events

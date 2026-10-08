@@ -14,6 +14,10 @@ import { ProfileScreen } from './screens/ProfileScreen';
 import { AIAssistantScreen } from './screens/AIAssistantScreen';
 import { OperationsScreen } from './screens/OperationsScreen';
 import { FeesOperations } from './components/FeesOperations';
+import { PreviousYearPapersScreen } from './screens/PreviousYearPapersScreen';
+import { LibraryScreen } from './screens/LibraryScreen';
+import { LostAndFoundScreen } from './screens/LostAndFoundScreen';
+import { EventConductionScreen } from './screens/EventConductionScreen';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -161,7 +165,9 @@ export default function App() {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.2 }}
             >
-              {currentScreen === 'dashboard' && <DashboardScreen onNavigate={handleNavigate} />}
+              {currentScreen === 'dashboard' && (
+                <DashboardScreen user={user} onNavigate={handleNavigate} />
+              )}
               {currentScreen === 'attendance' && <AttendanceScreen />}
               {currentScreen === 'exams' && <ExamsScreen />}
               {currentScreen === 'timetable' && <TimetableScreen />}
@@ -183,6 +189,18 @@ export default function App() {
                   user={user}
                   isStaffOrAdmin={user.role === 'Admin' || user.role === 'Teacher'}
                 />
+              )}
+              {currentScreen === 'papers' && (
+                <PreviousYearPapersScreen user={user} />
+              )}
+              {currentScreen === 'library' && (
+                <LibraryScreen user={user} />
+              )}
+              {currentScreen === 'lost-found' && (
+                <LostAndFoundScreen user={user} />
+              )}
+              {currentScreen === 'events' && (
+                <EventConductionScreen user={user} />
               )}
               {currentScreen === 'ai-chat' && <AIAssistantScreen />}
             </motion.div>

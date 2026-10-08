@@ -27,6 +27,23 @@ import {
   FeesApiResponse,
   CreateFeePayload,
   UpdateFeePayload,
+  PreviousYearPaper,
+  PaperFilterParams,
+  CreatePaperPayload,
+  LibraryBook,
+  BookIssueRecord,
+  BookIssueStatus,
+  CreateBookPayload,
+  LibraryCard,
+  LibraryCardRenewal,
+  CardRenewalStatus,
+  LostFoundItem,
+  NoticeType,
+  LostFoundStatus,
+  CreateLostFoundPayload,
+  EventApplication,
+  EventStatus,
+  CreateEventApplicationPayload,
 } from '../types';
 import {
   initialUserProfile,
@@ -1713,6 +1730,495 @@ class ApiService {
     return this.fetchJson<{ success: boolean; message?: string }>(`/operations/fees/${feeId}`, {
       method: 'DELETE',
     });
+  }
+
+  // ==========================================
+  // FEATURE 1: PREVIOUS YEAR PAPERS API
+  // ==========================================
+
+  /**
+   * Fetch previous year question papers with filters
+   */
+  async getPapers(
+    params?: PaperFilterParams
+  ): Promise<{ success: boolean; count: number; papers: PreviousYearPaper[] }> {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.department && params.department !== 'All') q.set('department', params.department);
+    if (params?.semester && params.semester !== 'All') q.set('semester', String(params.semester));
+    if (params?.subject && params.subject !== 'All') q.set('subject', params.subject);
+    if (params?.year && params.year !== 'All') q.set('year', String(params.year));
+    if (params?.exam_type && params.exam_type !== 'All') q.set('exam_type', params.exam_type);
+
+    const queryStr = q.toString() ? `?${q.toString()}` : '';
+    return this.fetchJson<{ success: boolean; count: number; papers: PreviousYearPaper[] }>(
+      `/papers${queryStr}`
+    );
+  }
+
+  /**
+   * Admin: Add a new previous year paper record
+   */
+  async createPaper(
+    payload: CreatePaperPayload
+  ): Promise<{ success: boolean; paper?: PreviousYearPaper; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; paper?: PreviousYearPaper; message?: string }>(
+      '/papers',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * Admin: Update an existing paper record
+   */
+  async updatePaper(
+    paperId: number,
+    payload: Partial<CreatePaperPayload>
+  ): Promise<{ success: boolean; paper?: PreviousYearPaper; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; paper?: PreviousYearPaper; message?: string }>(
+      `/papers/${paperId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * Admin: Delete a previous year paper record
+   */
+  async deletePaper(
+    paperId: number
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; message?: string }>(`/papers/${paperId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ==========================================
+  // FEATURE 2: LIBRARY BOOKS & ISSUE API
+  // ==========================================
+
+  /**
+   * Search and filter library books catalog
+   */
+  async getLibraryBooks(params?: {
+    search?: string;
+    category?: string;
+    available_only?: boolean;
+  }): Promise<{ success: boolean; count: number; books: LibraryBook[] }> {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.category && params.category !== 'All') q.set('category', params.category);
+    if (params?.available_only) q.set('available_only', 'true');
+
+    const queryStr = q.toString() ? `?${q.toString()}` : '';
+    return this.fetchJson<{ success: boolean; count: number; books: LibraryBook[] }>(
+      `/library/books${queryStr}`
+    );
+  }
+
+  /**
+   * Admin: Add a new book to catalog
+   */
+  async createLibraryBook(
+    payload: CreateBookPayload
+  ): Promise<{ success: boolean; book?: LibraryBook; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; book?: LibraryBook; message?: string }>(
+      '/library/books',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * Admin: Update book details or copies availability
+   */
+  async updateLibraryBook(
+    bookId: number,
+    payload: Partial<CreateBookPayload>
+  ): Promise<{ success: boolean; book?: LibraryBook; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; book?: LibraryBook; message?: string }>(
+      `/library/books/${bookId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * Admin: Remove a book from catalog
+   */
+  async deleteLibraryBook(
+    bookId: number
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; message?: string }>(`/library/books/${bookId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Student: Submit a book issue request
+   */
+  async requestBookIssue(
+    bookId: number,
+    notes?: string
+  ): Promise<{ success: boolean; issue?: BookIssueRecord; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; issue?: BookIssueRecord; message?: string }>(
+      '/library/issue-request',
+      {
+        method: 'POST',
+        body: JSON.stringify({ book_id: bookId, notes }),
+      }
+    );
+  }
+
+  /**
+   * Student: Get only their own book issue requests and records
+   */
+  async getMyBookIssues(): Promise<{ success: boolean; count: number; issues: BookIssueRecord[] }> {
+    return this.fetchJson<{ success: boolean; count: number; issues: BookIssueRecord[] }>(
+      '/library/my-issues'
+    );
+  }
+
+  /**
+   * Admin: View all student book issue requests across institution
+   */
+  async getAllIssueRequests(
+    status?: string
+  ): Promise<{ success: boolean; count: number; issues: BookIssueRecord[] }> {
+    const q = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
+    return this.fetchJson<{ success: boolean; count: number; issues: BookIssueRecord[] }>(
+      `/library/issue-requests${q}`
+    );
+  }
+
+  /**
+   * Admin: Approve/reject request, or mark book issued or returned
+   */
+  async updateIssueRequestStatus(
+    issueId: number,
+    status: BookIssueStatus,
+    dueDate?: string,
+    adminRemarks?: string
+  ): Promise<{ success: boolean; issue?: BookIssueRecord; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; issue?: BookIssueRecord; message?: string }>(
+      `/library/issue-requests/${issueId}/status`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ status, due_date: dueDate, admin_remarks: adminRemarks }),
+      }
+    );
+  }
+
+  // ==========================================
+  // FEATURE 3: LIBRARY CARD & RENEWAL API
+  // ==========================================
+
+  /**
+   * Student: Get current library card validity and status
+   */
+  async getMyLibraryCard(): Promise<{ success: boolean; card: LibraryCard }> {
+    return this.fetchJson<{ success: boolean; card: LibraryCard }>('/library/my-card');
+  }
+
+  /**
+   * Student: Get card renewal request history
+   */
+  async getMyCardRenewals(): Promise<{
+    success: boolean;
+    count: number;
+    renewals: LibraryCardRenewal[];
+  }> {
+    return this.fetchJson<{ success: boolean; count: number; renewals: LibraryCardRenewal[] }>(
+      '/library/my-renewals'
+    );
+  }
+
+  /**
+   * Student: Submit a library card renewal request
+   */
+  async submitCardRenewal(
+    reason?: string,
+    requestedExtensionMonths?: number
+  ): Promise<{ success: boolean; renewal?: LibraryCardRenewal; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; renewal?: LibraryCardRenewal; message?: string }>(
+      '/library/renew-card',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          reason,
+          requested_extension_months: requestedExtensionMonths || 12,
+        }),
+      }
+    );
+  }
+
+  /**
+   * Admin: View all student card renewal requests
+   */
+  async getAdminCardRenewals(
+    status?: string
+  ): Promise<{ success: boolean; count: number; renewals: LibraryCardRenewal[] }> {
+    const q = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
+    return this.fetchJson<{ success: boolean; count: number; renewals: LibraryCardRenewal[] }>(
+      `/library/admin/renewals${q}`
+    );
+  }
+
+  /**
+   * Admin: Approve/reject card renewal request and update validity
+   */
+  async updateCardRenewalStatus(
+    renewalId: number,
+    status: CardRenewalStatus,
+    newExpiryDate?: string,
+    adminNotes?: string
+  ): Promise<{ success: boolean; renewal?: LibraryCardRenewal; message?: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; renewal?: LibraryCardRenewal; message?: string }>(
+      `/library/admin/renewals/${renewalId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          status,
+          new_expiry_date: newExpiryDate,
+          admin_notes: adminNotes,
+        }),
+      }
+    );
+  }
+
+  // ==========================================
+  // FEATURE 1: LOST & FOUND
+  // ==========================================
+
+  /**
+   * List Lost & Found notices with optional filters
+   */
+  async getLostFoundNotices(params?: {
+    notice_type?: string;
+    category?: string;
+    status?: string;
+    location?: string;
+    date?: string;
+    search?: string;
+    my_only?: boolean;
+  }): Promise<{ success: boolean; count: number; notices: LostFoundItem[] }> {
+    const q = new URLSearchParams();
+    if (params?.notice_type && params.notice_type !== 'ALL') q.set('notice_type', params.notice_type);
+    if (params?.category && params.category !== 'ALL') q.set('category', params.category);
+    if (params?.status && params.status !== 'ALL') q.set('status', params.status);
+    if (params?.location) q.set('location', params.location);
+    if (params?.date) q.set('date', params.date);
+    if (params?.search) q.set('search', params.search);
+    if (params?.my_only) q.set('my_only', 'true');
+
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return this.fetchJson<{ success: boolean; count: number; notices: LostFoundItem[] }>(
+      `/lost-found${qs}`
+    );
+  }
+
+  /**
+   * Get single notice detail with activity history
+   */
+  async getLostFoundDetail(
+    id: number
+  ): Promise<{ success: boolean; notice: LostFoundItem }> {
+    return this.fetchJson<{ success: boolean; notice: LostFoundItem }>(`/lost-found/${id}`);
+  }
+
+  /**
+   * Create a new Lost or Found notice
+   */
+  async createLostFoundNotice(
+    payload: CreateLostFoundPayload
+  ): Promise<{ success: boolean; notice: LostFoundItem; message: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; notice: LostFoundItem; message: string }>(
+      '/lost-found',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * Update notice details
+   */
+  async updateLostFoundNotice(
+    id: number,
+    payload: Partial<LostFoundItem>
+  ): Promise<{ success: boolean; notice: LostFoundItem; message: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; notice: LostFoundItem; message: string }>(
+      `/lost-found/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * Update status of a notice (ACTIVE, CLAIMED, RESOLVED, CLOSED)
+   */
+  async updateLostFoundStatus(
+    id: number,
+    status: LostFoundStatus,
+    notes?: string
+  ): Promise<{ success: boolean; notice: LostFoundItem; message: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; notice: LostFoundItem; message: string }>(
+      `/lost-found/${id}/status`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ status, notes }),
+      }
+    );
+  }
+
+  /**
+   * Remove / delete notice
+   */
+  async deleteLostFoundNotice(
+    id: number
+  ): Promise<{ success: boolean; message: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; message: string }>(`/lost-found/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ==========================================
+  // FEATURE 2: EVENT CONDUCTION APPLICATIONS
+  // ==========================================
+
+  /**
+   * Get event application types, venues, and meta
+   */
+  async getEventsMeta(): Promise<{
+    success: boolean;
+    event_types: string[];
+    venues: string[];
+    statuses: string[];
+  }> {
+    return this.fetchJson<{
+      success: boolean;
+      event_types: string[];
+      venues: string[];
+      statuses: string[];
+    }>('/events/meta');
+  }
+
+  /**
+   * List event applications.
+   * Students see only their own applications; Admins see all.
+   */
+  async getEventApplications(params?: {
+    status?: string;
+    date?: string;
+    venue?: string;
+    organizing_body?: string;
+    event_type?: string;
+    search?: string;
+  }): Promise<{ success: boolean; count: number; applications: EventApplication[] }> {
+    const q = new URLSearchParams();
+    if (params?.status && params.status !== 'ALL') q.set('status', params.status);
+    if (params?.date) q.set('date', params.date);
+    if (params?.venue && params.venue !== 'ALL') q.set('venue', params.venue);
+    if (params?.organizing_body && params.organizing_body !== 'ALL')
+      q.set('organizing_body', params.organizing_body);
+    if (params?.event_type && params.event_type !== 'ALL')
+      q.set('event_type', params.event_type);
+    if (params?.search) q.set('search', params.search);
+
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return this.fetchJson<{ success: boolean; count: number; applications: EventApplication[] }>(
+      `/events/applications${qs}`
+    );
+  }
+
+  /**
+   * Get single event application detail + activities
+   */
+  async getEventApplicationDetail(
+    id: number
+  ): Promise<{ success: boolean; application: EventApplication; error?: string }> {
+    return this.fetchJson<{ success: boolean; application: EventApplication }>(
+      `/events/applications/${id}`
+    );
+  }
+
+  /**
+   * Submit an event conduction application
+   */
+  async submitEventApplication(
+    payload: CreateEventApplicationPayload
+  ): Promise<{ success: boolean; application: EventApplication; message: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; application: EventApplication; message: string }>(
+      '/events/applications',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * Admin: Approve, reject, or mark event as completed
+   */
+  async updateEventApplicationStatus(
+    id: number,
+    status: EventStatus,
+    adminRemarks?: string,
+    approvedVenue?: string
+  ): Promise<{ success: boolean; application: EventApplication; message: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; application: EventApplication; message: string }>(
+      `/events/applications/${id}/status`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          status,
+          admin_remarks: adminRemarks,
+          approved_venue: approvedVenue,
+        }),
+      }
+    );
+  }
+
+  /**
+   * Student can update pending application; Admin can update any
+   */
+  async updateEventApplication(
+    id: number,
+    payload: Partial<CreateEventApplicationPayload>
+  ): Promise<{ success: boolean; application: EventApplication; message: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; application: EventApplication; message: string }>(
+      `/events/applications/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  /**
+   * Withdraw / delete application
+   */
+  async deleteEventApplication(
+    id: number
+  ): Promise<{ success: boolean; message: string; error?: string }> {
+    return this.fetchJson<{ success: boolean; message: string }>(
+      `/events/applications/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
   }
 }
 

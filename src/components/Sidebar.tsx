@@ -12,6 +12,10 @@ import {
   LogOut,
   Building2,
   CreditCard,
+  BookMarked,
+  Library,
+  PackageSearch,
+  CalendarRange,
 } from 'lucide-react';
 import { ScreenId, UserProfile } from '../types';
 import { CampusPulseLogo } from './CampusPulseLogo';
@@ -36,7 +40,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     {
       id: 'dashboard' as ScreenId,
-      label: 'Dashboard',
+      label:
+        user?.role === 'Admin'
+          ? 'Admin Dashboard'
+          : user?.role === 'Teacher'
+          ? 'Teacher Dashboard'
+          : 'Dashboard',
       icon: LayoutDashboard,
     },
     {
@@ -70,6 +79,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: CreditCard,
     },
     {
+      id: 'papers' as ScreenId,
+      label: 'Previous Year Papers',
+      icon: BookMarked,
+    },
+    {
+      id: 'library' as ScreenId,
+      label: user?.role === 'Admin' ? 'Library & Circulation Desk' : 'Library & Book Issue',
+      icon: Library,
+    },
+    {
+      id: 'lost-found' as ScreenId,
+      label: user?.role === 'Admin' ? 'Lost & Found Desk' : 'Lost & Found',
+      icon: PackageSearch,
+    },
+    {
+      id: 'events' as ScreenId,
+      label: user?.role === 'Admin' ? 'Event Applications' : 'Event Conduction',
+      icon: CalendarRange,
+    },
+    {
       id: 'notifications' as ScreenId,
       label: 'Notifications',
       icon: Bell,
@@ -77,7 +106,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'profile' as ScreenId,
-      label: 'Profile',
+      label:
+        user?.role === 'Admin'
+          ? 'Admin Profile'
+          : user?.role === 'Teacher'
+          ? 'Faculty Profile'
+          : 'Profile',
       icon: User,
     },
     {

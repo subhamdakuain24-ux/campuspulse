@@ -9,7 +9,11 @@ export type ScreenId =
   | 'operations'
   | 'profile'
   | 'ai-chat'
-  | 'fees';
+  | 'fees'
+  | 'papers'
+  | 'library'
+  | 'lost-found'
+  | 'events';
 
 export type UserRole = 'Student' | 'Teacher' | 'Admin';
 
@@ -478,6 +482,264 @@ export interface UpdateFeePayload {
   transaction_reference?: string;
   notes?: string;
 }
+
+// ==========================================
+// FEATURE 1: PREVIOUS YEAR PAPERS TYPES
+// ==========================================
+
+export interface PreviousYearPaper {
+  id: number;
+  title: string;
+  subject: string;
+  subject_code?: string | null;
+  department: string;
+  semester: number;
+  semester_display?: string;
+  exam_type: 'Mid-Term' | 'End-Term' | 'Supplementary' | 'Model Paper' | string;
+  year: number;
+  resource_url: string;
+  file_size: string;
+  download_count: number;
+  uploaded_by: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PaperFilterParams {
+  search?: string;
+  department?: string;
+  semester?: string | number;
+  subject?: string;
+  year?: string | number;
+  exam_type?: string;
+}
+
+export interface CreatePaperPayload {
+  title: string;
+  subject: string;
+  subject_code?: string;
+  department: string;
+  semester: number;
+  exam_type: string;
+  year: number;
+  resource_url: string;
+  file_size?: string;
+}
+
+// ==========================================
+// FEATURE 2: LIBRARY BOOKS & ISSUE TYPES
+// ==========================================
+
+export interface LibraryBook {
+  id: number;
+  title: string;
+  author: string;
+  isbn: string;
+  category: string;
+  department?: string;
+  edition?: string;
+  publisher?: string | null;
+  publish_year?: number | null;
+  location: string;
+  total_copies: number;
+  available_copies: number;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type BookIssueStatus = 'REQUESTED' | 'ISSUED' | 'RETURNED' | 'REJECTED';
+
+export interface BookIssueRecord {
+  id: number;
+  book_id: number;
+  book_title?: string;
+  book_author?: string;
+  isbn?: string;
+  book_category?: string;
+  location?: string;
+  available_copies?: number;
+  total_copies?: number;
+  student_id: string;
+  student_name: string;
+  student_identifier: string;
+  request_date: string;
+  issue_date?: string | null;
+  due_date?: string | null;
+  return_date?: string | null;
+  status: BookIssueStatus;
+  notes?: string | null;
+  admin_remarks?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateBookPayload {
+  title: string;
+  author: string;
+  isbn: string;
+  category: string;
+  department?: string;
+  edition?: string;
+  publisher?: string;
+  location?: string;
+  total_copies: number;
+  available_copies?: number;
+  description?: string;
+}
+
+// ==========================================
+// FEATURE 3: LIBRARY CARD & RENEWAL TYPES
+// ==========================================
+
+export interface LibraryCard {
+  id: number;
+  student_id: string;
+  student_name: string;
+  student_identifier: string;
+  card_number: string;
+  issue_date: string;
+  valid_until: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'SUSPENDED';
+  is_expired?: boolean;
+  days_remaining?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type CardRenewalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'RENEWED';
+
+export interface LibraryCardRenewal {
+  id: number;
+  student_id: string;
+  student_name: string;
+  student_identifier: string;
+  current_expiry_date: string;
+  requested_extension_months: number;
+  reason?: string | null;
+  status: CardRenewalStatus;
+  new_expiry_date?: string | null;
+  admin_notes?: string | null;
+  processed_by?: string | null;
+  processed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ==========================================
+// Lost & Found (Feature 1)
+// ==========================================
+
+export type NoticeType = 'LOST' | 'FOUND';
+export type LostFoundStatus = 'ACTIVE' | 'CLAIMED' | 'RESOLVED' | 'CLOSED';
+
+export interface LostFoundActivity {
+  id: number;
+  item_id: number;
+  actor_id: string;
+  actor_name: string;
+  actor_role: string;
+  action: string;
+  old_status?: string | null;
+  new_status?: string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface LostFoundItem {
+  id: number;
+  public_id: string;
+  notice_type: NoticeType;
+  item_name: string;
+  category: string;
+  description: string;
+  location: string;
+  item_date: string;
+  contact_info: string;
+  image_url?: string | null;
+  student_id: string;
+  student_name: string;
+  student_identifier: string;
+  status: LostFoundStatus;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  activities?: LostFoundActivity[];
+}
+
+export interface CreateLostFoundPayload {
+  notice_type: NoticeType;
+  item_name: string;
+  category: string;
+  description: string;
+  location: string;
+  item_date: string;
+  contact_info: string;
+  image_url?: string;
+}
+
+// ==========================================
+// Event Conduction Application (Feature 2)
+// ==========================================
+
+export type EventStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+
+export interface EventApplicationActivity {
+  id: number;
+  application_id: number;
+  actor_id: string;
+  actor_name: string;
+  actor_role: string;
+  action: string;
+  old_status?: string | null;
+  new_status?: string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface EventApplication {
+  id: number;
+  application_no: string;
+  student_id: string;
+  student_name: string;
+  student_identifier: string;
+  department?: string | null;
+  event_name: string;
+  event_type: string;
+  description: string;
+  proposed_date: string;
+  start_time: string;
+  end_time: string;
+  venue: string;
+  expected_participants: number;
+  organizing_body: string;
+  faculty_coordinator: string;
+  additional_requirements?: string | null;
+  status: EventStatus;
+  admin_remarks?: string | null;
+  approved_venue?: string | null;
+  processed_by?: string | null;
+  processed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  activities?: EventApplicationActivity[];
+}
+
+export interface CreateEventApplicationPayload {
+  event_name: string;
+  event_type: string;
+  description: string;
+  proposed_date: string;
+  start_time: string;
+  end_time: string;
+  venue: string;
+  expected_participants: number;
+  organizing_body: string;
+  faculty_coordinator: string;
+  additional_requirements?: string;
+  department?: string;
+}
+
 
 
 
