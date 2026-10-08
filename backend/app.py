@@ -75,8 +75,9 @@ def create_app(test_config=None):
 
     return app
 
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
     port = int(os.environ.get("FLASK_PORT", 5000))
     print(f"[CampusPulse] Flask server starting on port {port}...")
     app.run(host="0.0.0.0", port=port, debug=False)
