@@ -55,15 +55,28 @@ import {
   timetableSchedule,
 } from '../data/mockData';
 
+const DEPLOYED_BACKEND_URL = 'https://campuspulse-backend-8ufj.onrender.com';
+
 const getApiBaseUrl = (): string => {
   try {
     const metaEnv = (import.meta as any)?.env?.VITE_API_URL;
     if (metaEnv && typeof metaEnv === 'string' && metaEnv.trim().length > 0) {
-      return metaEnv.replace(/\/+$/, '') + '/api';
+      const trimmed = metaEnv.trim().replace(/\/+$/, '');
+      return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
     }
   } catch {
     // fallback to relative proxy
   }
+
+  // Fallback for production deployment on Render when VITE_API_URL was omitted at build time
+  if (
+    typeof window !== 'undefined' &&
+    window.location.hostname &&
+    window.location.hostname.includes('onrender.com')
+  ) {
+    return `${DEPLOYED_BACKEND_URL}/api`;
+  }
+
   return '/api';
 };
 
@@ -681,27 +694,56 @@ class ApiService {
       throw new Error('Backend service unavailable. Please ensure server is running.');
     }
 
-    if (!response.ok) {
-      let errorMessage = `HTTP Error ${response.status}: ${response.statusText}`;
+    // Safely extract response text to handle empty bodies, HTML pages, and non-JSON responses
+    const rawText = await response.text();
+    const trimmedText = rawText.trim();
+
+    let jsonBody: any = null;
+    let isJson = false;
+
+    if (trimmedText.length > 0) {
       try {
-        const errorData = await response.json();
-        if (response.status === 401) {
-          // Specific friendly message for authentication
-          errorMessage = errorData?.error || 'Invalid ID/email or password';
-        } else if (errorData?.error) {
-          errorMessage = errorData.error;
-        } else if (errorData?.message) {
-          errorMessage = errorData.message;
-        }
+        jsonBody = JSON.parse(trimmedText);
+        isJson = true;
       } catch {
-        if (response.status === 401) {
-          errorMessage = 'Invalid ID/email or password';
-        }
+        isJson = false;
+        jsonBody = null;
       }
+    }
+
+    if (!response.ok) {
+      let errorMessage = `HTTP Error ${response.status}${response.statusText ? `: ${response.statusText}` : ''}`;
+
+      if (isJson && jsonBody && typeof jsonBody === 'object') {
+        if (response.status === 401) {
+          errorMessage = jsonBody.error || jsonBody.message || 'Invalid ID/email or password';
+        } else if (jsonBody.error) {
+          errorMessage = typeof jsonBody.error === 'string' ? jsonBody.error : JSON.stringify(jsonBody.error);
+        } else if (jsonBody.message) {
+          errorMessage = typeof jsonBody.message === 'string' ? jsonBody.message : JSON.stringify(jsonBody.message);
+        } else if (jsonBody.detail) {
+          errorMessage = typeof jsonBody.detail === 'string' ? jsonBody.detail : JSON.stringify(jsonBody.detail);
+        }
+      } else if (response.status === 401) {
+        errorMessage = 'Invalid ID/email or password';
+      } else if (trimmedText.length > 0 && trimmedText.length < 300 && !trimmedText.startsWith('<')) {
+        errorMessage = `HTTP Error ${response.status}: ${trimmedText}`;
+      }
+
       throw new Error(errorMessage);
     }
 
-    return (await response.json()) as T;
+    // Safely handle empty body responses (e.g. HTTP 204 No Content, 205 Reset Content, or empty 200/201 body)
+    if (response.status === 204 || response.status === 205 || trimmedText.length === 0) {
+      return {} as T;
+    }
+
+    if (isJson) {
+      return jsonBody as T;
+    }
+
+    // Response was 2xx but body was non-JSON (e.g. HTML or text)
+    throw new Error(`Expected JSON response from server but received non-JSON (HTTP ${response.status})`);
   }
 
   public getStoredUser(): AuthUser | null {
