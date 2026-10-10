@@ -61,6 +61,7 @@ import {
   CreateRequestPayload,
 } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 interface OperationsScreenProps {
   user: UserProfile;
@@ -92,6 +93,7 @@ const COMPLAINT_CATEGORIES = [
 ];
 
 export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
+  const { t, translateStatus } = useTranslation();
   const isAdmin = user.role === 'Admin';
   const isTeacher = user.role === 'Teacher';
   const isStaffOrAdmin = isAdmin || isTeacher;
@@ -583,12 +585,12 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               Unified Campus Operations
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {isStaffOrAdmin ? 'Campus Operations Command Center' : 'Campus Operations & Request Hub'}
+              {t('operations.title', isStaffOrAdmin ? 'Campus Operations Command Center' : 'Campus Operations & Request Hub')}
             </h1>
             <p className="text-slate-300 text-sm mt-1.5 max-w-2xl leading-relaxed">
-              {isStaffOrAdmin
+              {t('operations.subtitle', isStaffOrAdmin
                 ? 'Review student complaints, process bonafide certificates, manage gate passes, assign staff, and track resolution audit history.'
-                : 'Raise hostel maintenance complaints, apply for official bonafide certificates, request weekend gate passes or leaves, and track live status updates.'}
+                : 'Raise hostel maintenance complaints, apply for official bonafide certificates, request weekend gate passes or leaves, and track live status updates.')}
             </p>
           </div>
 
@@ -597,10 +599,10 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               onClick={() => loadData(false)}
               disabled={isRefreshing}
               className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer"
-              title="Refresh data"
+              title={t('common.refresh', 'Refresh data')}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Sync
+              {t('common.refresh', 'Sync')}
             </button>
 
             <button
@@ -612,7 +614,7 @@ export const OperationsScreen: React.FC<OperationsScreenProps> = ({ user }) => {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all hover:scale-[1.02] cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              New Request
+              {t('operations.newRequestBtn', 'New Request')}
             </button>
           </div>
         </div>

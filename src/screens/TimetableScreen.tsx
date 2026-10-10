@@ -13,8 +13,10 @@ import {
 } from 'lucide-react';
 import { timetableSchedule } from '../data/mockData';
 import { api, TimetableScreenData } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 export const TimetableScreen: React.FC = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [timetableData, setTimetableData] = useState<TimetableScreenData>({
@@ -118,7 +120,7 @@ export const TimetableScreen: React.FC = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Timetable
+              {t('timetable.title', 'Timetable')}
             </h1>
             {timetableData.isLiveApi && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
@@ -128,7 +130,7 @@ export const TimetableScreen: React.FC = () => {
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Manage your classes, labs, and weekly schedule.
+            {t('timetable.subtitle', 'Manage your classes, labs, and weekly schedule.')}
           </p>
         </div>
 
@@ -139,7 +141,7 @@ export const TimetableScreen: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export PDF</span>
+            <span>{t('common.export', 'Export PDF')}</span>
           </button>
 
           <button

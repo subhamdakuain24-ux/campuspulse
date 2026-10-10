@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, LostFoundItem, NoticeType, LostFoundStatus, CreateLostFoundPayload } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 interface LostAndFoundScreenProps {
   user: UserProfile;
@@ -47,6 +48,7 @@ const CATEGORIES = [
 const STATUS_FILTERS = ['All', 'ACTIVE', 'CLAIMED', 'RESOLVED', 'CLOSED'];
 
 export const LostAndFoundScreen: React.FC<LostAndFoundScreenProps> = ({ user }) => {
+  const { t, translateStatus } = useTranslation();
   const isAdmin = user.role === 'Admin';
 
   const [notices, setNotices] = useState<LostFoundItem[]>([]);
@@ -310,9 +312,9 @@ export const LostAndFoundScreen: React.FC<LostAndFoundScreenProps> = ({ user }) 
             </span>
             <span className="text-xs text-slate-400">Verified Notices</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Campus Lost &amp; Found</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('lostFound.title', 'Campus Lost & Found')}</h1>
           <p className="text-slate-300 text-sm mt-1 max-w-2xl">
-            Report misplaced belongings, browse discovered articles across university halls, and claim verified items safely.
+            {t('lostFound.subtitle', 'Report misplaced belongings, browse discovered articles across university halls, and claim verified items safely.')}
           </p>
         </div>
 
@@ -325,7 +327,7 @@ export const LostAndFoundScreen: React.FC<LostAndFoundScreenProps> = ({ user }) 
             className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold rounded-xl text-sm transition-all shadow-md active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            Report Lost Item
+            {t('lostFound.lostType', 'Report Lost Item')}
           </button>
           <button
             onClick={() => {
@@ -335,7 +337,7 @@ export const LostAndFoundScreen: React.FC<LostAndFoundScreenProps> = ({ user }) 
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-sm transition-all shadow-md active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            Report Found Item
+            {t('lostFound.foundType', 'Report Found Item')}
           </button>
         </div>
       </div>

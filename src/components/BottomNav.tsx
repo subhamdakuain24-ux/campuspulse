@@ -2,7 +2,6 @@ import React from 'react';
 import {
   LayoutDashboard,
   UserCheck,
-  GraduationCap,
   CalendarDays,
   FileText,
   Bell,
@@ -10,6 +9,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { ScreenId } from '../types';
+import { useTranslation } from '../context/LanguageContext';
 
 interface BottomNavProps {
   currentScreen: ScreenId;
@@ -22,14 +22,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onNavigate,
   unreadCount = 0,
 }) => {
+  const { t } = useTranslation();
+
   const items = [
-    { id: 'dashboard' as ScreenId, label: 'Home', icon: LayoutDashboard },
-    { id: 'attendance' as ScreenId, label: 'Attend', icon: UserCheck },
-    { id: 'operations' as ScreenId, label: 'Ops', icon: Building2 },
-    { id: 'timetable' as ScreenId, label: 'Schedule', icon: CalendarDays },
-    { id: 'assignments' as ScreenId, label: 'Tasks', icon: FileText },
-    { id: 'notifications' as ScreenId, label: 'Alerts', icon: Bell, badge: unreadCount },
-    { id: 'ai-chat' as ScreenId, label: 'AI Bot', icon: Sparkles, highlight: true },
+    { id: 'dashboard' as ScreenId, label: t('nav.home'), icon: LayoutDashboard },
+    { id: 'attendance' as ScreenId, label: t('nav.attend'), icon: UserCheck },
+    { id: 'operations' as ScreenId, label: t('nav.ops'), icon: Building2 },
+    { id: 'timetable' as ScreenId, label: t('nav.schedule'), icon: CalendarDays },
+    { id: 'assignments' as ScreenId, label: t('nav.tasks'), icon: FileText },
+    { id: 'notifications' as ScreenId, label: t('nav.alerts'), icon: Bell, badge: unreadCount },
+    { id: 'ai-chat' as ScreenId, label: t('nav.aiBot'), icon: Sparkles, highlight: true },
   ];
 
   return (

@@ -33,6 +33,7 @@ import {
   CreateEventApplicationPayload,
 } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 interface EventConductionScreenProps {
   user: UserProfile;
@@ -67,6 +68,7 @@ const DEFAULT_VENUES = [
 const STATUS_TABS = ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'COMPLETED'];
 
 export const EventConductionScreen: React.FC<EventConductionScreenProps> = ({ user }) => {
+  const { t, translateStatus } = useTranslation();
   const isAdmin = user.role === 'Admin';
 
   const [applications, setApplications] = useState<EventApplication[]>([]);
@@ -336,10 +338,10 @@ export const EventConductionScreen: React.FC<EventConductionScreenProps> = ({ us
             <span className="text-xs text-slate-400">Dean of Student Affairs</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Event Conduction Applications
+            {t('events.title', 'Event Conduction Applications')}
           </h1>
           <p className="text-slate-300 text-sm mt-1 max-w-2xl">
-            Submit formal proposals for academic workshops, cultural fests, hackathons, and sports tournaments. Track approvals, venue allocations, and logistics.
+            {t('events.subtitle', 'Submit formal proposals for academic workshops, cultural fests, hackathons, and sports tournaments. Track approvals, venue allocations, and logistics.')}
           </p>
         </div>
 
@@ -349,7 +351,7 @@ export const EventConductionScreen: React.FC<EventConductionScreenProps> = ({ us
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl text-sm transition-all shadow-md active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            Submit Event Proposal
+            {t('events.submitNewApp', 'Submit Event Proposal')}
           </button>
         </div>
       </div>

@@ -25,6 +25,7 @@ import { api, DashboardApiData } from '../services/api';
 import { initialUserProfile, attendanceSubjects, todayClasses, upcomingExams, initialAssignments } from '../data/mockData';
 import { AdminDashboardScreen } from './AdminDashboardScreen';
 import { TeacherDashboardScreen } from './TeacherDashboardScreen';
+import { useTranslation } from '../context/LanguageContext';
 
 interface DashboardScreenProps {
   user?: UserProfile;
@@ -32,6 +33,8 @@ interface DashboardScreenProps {
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNavigate }) => {
+  const { t } = useTranslation();
+
   // If user is Admin, render the Admin Dashboard
   if (user?.role === 'Admin') {
     return <AdminDashboardScreen user={user} onNavigate={onNavigate} />;
@@ -176,7 +179,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNaviga
           className="md:col-span-3 bg-white rounded-2xl p-6 border border-slate-100/90 shadow-xs flex flex-col justify-between cursor-pointer group hover:border-blue-200 transition-all"
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900">Attendance</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('attendance.title')}</h2>
             {dashboardData.isLiveApi && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -223,12 +226,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNaviga
             {/* On Track Pill */}
             <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-100">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{attendancePct >= 75 ? 'On Track' : 'Needs Attention'}</span>
+              <span>{attendancePct >= 75 ? t('dashboard.attendanceSafe') : t('dashboard.attendanceWarning')}</span>
             </div>
           </div>
 
           <div className="pt-2 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400 font-medium group-hover:text-blue-600 transition-colors">
-            <span>View detailed records</span>
+            <span>{t('common.viewDetails')}</span>
             <ChevronRight className="w-4 h-4" />
           </div>
         </motion.div>
@@ -248,7 +251,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNaviga
           {/* Top content */}
           <div className="relative z-10">
             <div className="inline-block text-[11px] font-bold uppercase tracking-wider text-blue-100/90 mb-2.5">
-              NEXT EXAM
+              {t('dashboard.upcomingExam')}
             </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
               {dashboardData.nextExam?.name || 'Data Structures & Algorithms'}
@@ -266,7 +269,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNaviga
                   {timeLeft.days}
                 </span>
                 <span className="text-[11px] font-semibold text-blue-100/90 tracking-wide uppercase">
-                  Days
+                  {t('dashboard.days')}
                 </span>
               </div>
 
@@ -275,7 +278,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNaviga
                   {timeLeft.hours}
                 </span>
                 <span className="text-[11px] font-semibold text-blue-100/90 tracking-wide uppercase">
-                  Hrs
+                  {t('dashboard.hours')}
                 </span>
               </div>
 
@@ -284,7 +287,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNaviga
                   {timeLeft.minutes}
                 </span>
                 <span className="text-[11px] font-semibold text-blue-100/90 tracking-wide uppercase">
-                  Min
+                  {t('dashboard.mins')}
                 </span>
               </div>
             </div>
@@ -298,12 +301,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNaviga
           className="md:col-span-4 bg-white rounded-2xl p-6 border border-slate-100/90 shadow-xs flex flex-col justify-between"
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900">Today&apos;s Classes</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('dashboard.todaySchedule')}</h2>
             <button
               onClick={() => onNavigate('timetable')}
-              className="text-xs text-blue-600 hover:text-blue-700 font-semibold hover:underline"
+              className="text-xs text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer"
             >
-              View All
+              {t('common.view')}
             </button>
           </div>
 
@@ -593,14 +596,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNaviga
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm sm:text-base font-bold text-white">
-                  Campus Operations & Services
+                  {t('operations.title')}
                 </h3>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-400/30">
                   Live
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Hostel complaints, bonafide certificates, gate passes, mess dining, and student fees & dues.
+                {t('operations.subtitle')}
               </p>
             </div>
           </div>
@@ -611,41 +614,41 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ user, onNaviga
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <PackageSearch className="w-3.5 h-3.5 text-amber-400" />
-              Lost & Found
+              {t('nav.lostFound')}
             </button>
             <button
               onClick={() => onNavigate('events')}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <CalendarRange className="w-3.5 h-3.5 text-purple-400" />
-              Event Conduction
+              {t('nav.events')}
             </button>
             <button
               onClick={() => onNavigate('library')}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-              Library & Books
+              {t('nav.library')}
             </button>
             <button
               onClick={() => onNavigate('papers')}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <BookMarked className="w-3.5 h-3.5 text-blue-400" />
-              Exam Papers
+              {t('nav.papers')}
             </button>
             <button
               onClick={() => onNavigate('fees')}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
-              Fees & Dues
+              {t('nav.fees')}
             </button>
             <button
               onClick={() => onNavigate('operations')}
               className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
-              Operations Desk
+              {t('nav.operations')}
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>

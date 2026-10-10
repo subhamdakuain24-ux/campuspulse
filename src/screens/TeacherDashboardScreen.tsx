@@ -15,6 +15,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { ScreenId, UserProfile } from '../types';
+import { useTranslation } from '../context/LanguageContext';
 
 interface TeacherDashboardScreenProps {
   user: UserProfile;
@@ -22,6 +23,7 @@ interface TeacherDashboardScreenProps {
 }
 
 export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ user, onNavigate }) => {
+  const { t, translateRole } = useTranslation();
   // Today's classes taught by faculty
   const todayClasses = [
     {
@@ -104,14 +106,14 @@ export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ 
               className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
             >
               <UserCheck className="w-4 h-4" />
-              Mark Attendance
+              {t('teacher.attendanceRegistry', 'Mark Attendance')}
             </button>
             <button
               onClick={() => onNavigate('timetable')}
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-2 cursor-pointer"
             >
               <CalendarDays className="w-4 h-4 text-emerald-400" />
-              Teaching Schedule
+              {t('teacher.todaysLectures', 'Teaching Schedule')}
             </button>
           </div>
         </div>
@@ -126,7 +128,7 @@ export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ 
           className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs cursor-pointer hover:border-emerald-200 transition-all flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lectures Today</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('teacher.todaysLectures', 'Lectures Today')}</span>
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <CalendarDays className="w-5 h-5" />
             </div>
@@ -138,7 +140,7 @@ export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ 
             <p className="text-xs text-slate-500 mt-1">Next lecture starts at 10:00 AM (Room 402)</p>
           </div>
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-emerald-600 font-semibold">
-            <span>View Schedule</span>
+            <span>{t('timetable.title', 'View Schedule')}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </motion.div>
@@ -150,7 +152,7 @@ export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ 
           className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs cursor-pointer hover:border-blue-200 transition-all flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Course Attendance</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('attendance.title', 'Course Attendance')}</span>
             <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
               <UserCheck className="w-5 h-5" />
             </div>
@@ -165,7 +167,7 @@ export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ 
             <p className="text-xs text-slate-500 mt-1">Average across CS301, CS304, CS312</p>
           </div>
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold">
-            <span>Class Roster</span>
+            <span>{t('attendance.title', 'Class Roster')}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </motion.div>
@@ -177,7 +179,7 @@ export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ 
           className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs cursor-pointer hover:border-amber-200 transition-all flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending Grading</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('teacher.pendingGrading', 'Pending Grading')}</span>
             <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <FileText className="w-5 h-5" />
             </div>
@@ -189,7 +191,7 @@ export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ 
             <p className="text-xs text-slate-500 mt-1">2 assignments awaiting evaluation</p>
           </div>
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-amber-600 font-semibold">
-            <span>Grade Coursework</span>
+            <span>{t('assignments.title', 'Grade Coursework')}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </motion.div>
@@ -201,7 +203,7 @@ export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ 
           className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs cursor-pointer hover:border-purple-200 transition-all flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Exams Scheduled</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('exams.title', 'Exams Scheduled')}</span>
             <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
               <BookOpen className="w-5 h-5" />
             </div>
@@ -213,7 +215,7 @@ export const TeacherDashboardScreen: React.FC<TeacherDashboardScreenProps> = ({ 
             <p className="text-xs text-slate-500 mt-1">CS301 on Oct 12 • Room 402</p>
           </div>
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-purple-600 font-semibold">
-            <span>Exam Center</span>
+            <span>{t('exams.title', 'Exam Center')}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </motion.div>

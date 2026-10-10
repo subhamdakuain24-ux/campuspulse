@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { ScreenId, UserProfile, CampusOperationsStats } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 interface AdminDashboardScreenProps {
   user: UserProfile;
@@ -31,6 +32,7 @@ interface AdminDashboardScreenProps {
 }
 
 export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ user, onNavigate }) => {
+  const { t, translateRole } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [operationsStats, setOperationsStats] = useState<CampusOperationsStats | null>(null);
   const [feesSummary, setFeesSummary] = useState({
@@ -115,32 +117,32 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ user
               className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
             >
               <Building2 className="w-3.5 h-3.5" />
-              Operations
+              {t('nav.operations', 'Operations')}
             </button>
             <button
               onClick={() => onNavigate('library')}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer"
             >
               <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-              Library Desk
+              {t('library.title', 'Library Desk')}
             </button>
             <button
               onClick={() => onNavigate('papers')}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer"
             >
               <BookMarked className="w-3.5 h-3.5 text-blue-400" />
-              Exam Papers
+              {t('papers.title', 'Exam Papers')}
             </button>
             <button
               onClick={() => onNavigate('fees')}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer"
             >
               <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
-              Fees
+              {t('fees.title', 'Fees')}
             </button>
             <button
               onClick={loadAdminData}
-              title="Refresh Analytics"
+              title={t('common.refresh', 'Refresh Analytics')}
               className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700 cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -158,7 +160,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ user
           className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs cursor-pointer hover:border-blue-200 transition-all flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Campus Attendance</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('attendance.title', 'Campus Attendance')}</span>
             <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
               <BarChart3 className="w-5 h-5" />
             </div>
@@ -173,7 +175,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ user
             <p className="text-xs text-slate-500 mt-1">Campus student average across all programs</p>
           </div>
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-blue-600 font-semibold">
-            <span>Student Analytics</span>
+            <span>{t('attendance.title', 'Student Analytics')}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </motion.div>
@@ -185,7 +187,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ user
           className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs cursor-pointer hover:border-indigo-200 transition-all flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Operations Desk</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('nav.operations', 'Operations Desk')}</span>
             <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <Building2 className="w-5 h-5" />
             </div>
@@ -196,15 +198,15 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ user
                 {operationsStats?.total ?? 25}
               </span>
               <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                {operationsStats?.in_progress ?? 6} Active
+                {operationsStats?.in_progress ?? 6} {t('common.active', 'Active')}
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              {operationsStats?.pending ?? 7} pending review • {operationsStats?.resolved ?? 9} resolved
+              {operationsStats?.pending ?? 7} {t('status.PENDING', 'pending')} • {operationsStats?.resolved ?? 9} {t('status.RESOLVED', 'resolved')}
             </p>
           </div>
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-indigo-600 font-semibold">
-            <span>Manage Requests</span>
+            <span>{t('operations.allRequests', 'Manage Requests')}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </motion.div>
@@ -216,7 +218,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ user
           className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs cursor-pointer hover:border-emerald-200 transition-all flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fees Collected</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('admin.feesCollected', 'Fees Collected')}</span>
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <CreditCard className="w-5 h-5" />
             </div>

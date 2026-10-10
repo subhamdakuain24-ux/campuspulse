@@ -38,6 +38,7 @@ import {
   CreateBookPayload,
 } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 interface LibraryScreenProps {
   user: UserProfile;
@@ -55,6 +56,7 @@ const BOOK_CATEGORIES = [
 ];
 
 export const LibraryScreen: React.FC<LibraryScreenProps> = ({ user }) => {
+  const { t, translateStatus } = useTranslation();
   const isAdmin = user.role === 'Admin';
 
   // Navigation tab: 'books' | 'card'
@@ -510,10 +512,10 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({ user }) => {
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Library Services & Circulation Desk
+              {t('library.title', 'Library Services & Circulation Desk')}
             </h1>
             <p className="text-sm text-slate-300 max-w-2xl">
-              Centralized book loans, automated issue/return tracking, digital catalog search, and student library card renewals.
+              {t('library.subtitle', 'Centralized book loans, automated issue/return tracking, digital catalog search, and student library card renewals.')}
             </p>
           </div>
 
@@ -538,7 +540,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({ user }) => {
                 className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
-                Request Card Renewal
+                {t('library.renewCard', 'Request Card Renewal')}
               </button>
             )}
             <button
@@ -552,7 +554,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({ user }) => {
                   else loadAdminRenewals();
                 }
               }}
-              title="Refresh"
+              title={t('common.refresh', 'Refresh')}
               className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700 cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" />
@@ -572,7 +574,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({ user }) => {
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          <span>Book Issue & Return</span>
+          <span>{t('library.allBooks', 'Book Issue & Return')}</span>
         </button>
         <button
           onClick={() => setActiveTab('card')}
@@ -583,7 +585,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({ user }) => {
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          <span>Library Card Renewal</span>
+          <span>{t('library.renewals', 'Library Card Renewal')}</span>
         </button>
       </div>
 

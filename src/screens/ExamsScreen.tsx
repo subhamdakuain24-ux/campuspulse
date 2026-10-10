@@ -19,8 +19,10 @@ import {
 import { upcomingExams } from '../data/mockData';
 import { ExamItem } from '../types';
 import { api, ExamsScreenData, BackendExamItem } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 export const ExamsScreen: React.FC = () => {
+  const { t, translateStatus } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [examsData, setExamsData] = useState<ExamsScreenData>({
@@ -156,7 +158,7 @@ export const ExamsScreen: React.FC = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Examination Center
+              {t('exams.title', 'Examination Center')}
             </h1>
             {examsData.isLiveApi && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
@@ -166,7 +168,7 @@ export const ExamsScreen: React.FC = () => {
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Manage your upcoming assessments and track preparation status.
+            {t('exams.subtitle', 'Manage your upcoming assessments and track preparation status.')}
           </p>
         </div>
 
@@ -175,7 +177,7 @@ export const ExamsScreen: React.FC = () => {
           className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
         >
           <FileCheck className="w-4 h-4" />
-          <span>Hall Ticket</span>
+          <span>{t('exams.downloadAdmitCard', 'Hall Ticket')}</span>
         </button>
       </div>
 
@@ -192,7 +194,7 @@ export const ExamsScreen: React.FC = () => {
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200/60 mb-3">
                 <Flame className="w-3.5 h-3.5 text-amber-500" />
-                <span>Next Exam</span>
+                <span>{t('dashboard.upcomingExam', 'Next Exam')}</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
                 {nextExam.name}
@@ -206,7 +208,7 @@ export const ExamsScreen: React.FC = () => {
             {/* Countdown Ticker Box */}
             <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 sm:p-4 text-right">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block mb-1">
-                TIME REMAINING
+                {t('dashboard.startsIn', 'TIME REMAINING')}
               </span>
 
               {/* Ticker Row */}
@@ -214,21 +216,21 @@ export const ExamsScreen: React.FC = () => {
                 <div className="flex flex-col items-center">
                   <span>{timeLeft.days}</span>
                   <span className="text-[9px] font-sans font-semibold text-slate-400 uppercase">
-                    DD
+                    {t('dashboard.days', 'DD')}
                   </span>
                 </div>
                 <span className="text-slate-300 -mt-3">:</span>
                 <div className="flex flex-col items-center">
                   <span>{timeLeft.hours}</span>
                   <span className="text-[9px] font-sans font-semibold text-slate-400 uppercase">
-                    HH
+                    {t('dashboard.hours', 'HH')}
                   </span>
                 </div>
                 <span className="text-slate-300 -mt-3">:</span>
                 <div className="flex flex-col items-center">
                   <span>{timeLeft.minutes}</span>
                   <span className="text-[9px] font-sans font-semibold text-slate-400 uppercase">
-                    MM
+                    {t('dashboard.mins', 'MM')}
                   </span>
                 </div>
                 <span className="text-slate-300 -mt-3">:</span>
@@ -315,9 +317,9 @@ export const ExamsScreen: React.FC = () => {
         {/* Left Column: Full Upcoming Schedule List (Page 7 Left) */}
         <div className="lg:col-span-8 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">Upcoming Assessments</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t('exams.upcomingExams', 'Upcoming Assessments')}</h2>
             <span className="text-xs text-slate-500 font-medium">
-              {exams.length} Scheduled Sessions
+              {exams.length} {t('common.items', 'Scheduled Sessions')}
             </span>
           </div>
 
@@ -357,7 +359,7 @@ export const ExamsScreen: React.FC = () => {
                                 : 'bg-amber-50 text-amber-700 border border-amber-200'
                             }`}
                           >
-                            {exam.status}
+                            {translateStatus(exam.status)}
                           </span>
                         </div>
 
@@ -383,7 +385,7 @@ export const ExamsScreen: React.FC = () => {
                     {/* Right: Prep indicator & quick action */}
                     <div className="sm:text-right shrink-0">
                       <span className="text-[11px] font-semibold text-slate-400 block mb-1">
-                        Syllabus Prep
+                        {t('exams.prepProgress', 'Syllabus Prep')}
                       </span>
                       <span className="text-sm font-mono font-extrabold text-blue-600">
                         {exam.syllabusPercent}%

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, PreviousYearPaper, CreatePaperPayload } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 interface PreviousYearPapersScreenProps {
   user: UserProfile;
@@ -44,6 +45,7 @@ const EXAM_TYPES = ['All', 'Mid-Term', 'End-Term', 'Supplementary', 'Model Paper
 const YEARS = ['All', '2024', '2023', '2022', '2021', '2020'];
 
 export const PreviousYearPapersScreen: React.FC<PreviousYearPapersScreenProps> = ({ user }) => {
+  const { t, translateStatus } = useTranslation();
   const isAdmin = user.role === 'Admin';
 
   const [papers, setPapers] = useState<PreviousYearPaper[]>([]);
@@ -236,10 +238,10 @@ export const PreviousYearPapersScreen: React.FC<PreviousYearPapersScreenProps> =
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Previous Year Question Papers
+              {t('papers.title', 'Previous Year Question Papers')}
             </h1>
             <p className="text-sm text-slate-300 max-w-2xl">
-              Official university examination papers repository across departments and semesters for syllabus preparation, revision, and model paper review.
+              {t('papers.subtitle', 'Official university examination papers repository across departments and semesters for syllabus preparation, revision, and model paper review.')}
             </p>
           </div>
 
@@ -255,7 +257,7 @@ export const PreviousYearPapersScreen: React.FC<PreviousYearPapersScreenProps> =
             )}
             <button
               onClick={fetchPapers}
-              title="Refresh repository"
+              title={t('common.refresh', 'Refresh repository')}
               className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700 cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />

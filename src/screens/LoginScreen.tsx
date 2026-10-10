@@ -19,6 +19,8 @@ import confetti from 'canvas-confetti';
 import { CampusPulseLogo } from '../components/CampusPulseLogo';
 import { UserRole, UserProfile } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
+import { LanguageSelector } from '../components/LanguageSelector';
 import studentCharacterImg from '../assets/images/student_clay_character_1790601134918.jpg';
 import pastelCloudImg from '../assets/images/pastel_cloud_elements_1790601145639.jpg';
 
@@ -27,6 +29,7 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+  const { t, translateRole } = useTranslation();
   const [selectedRole, setSelectedRole] = useState<UserRole>('Student');
   const [identifier, setIdentifier] = useState('CP-847291');
   const [password, setPassword] = useState('password123');
@@ -94,7 +97,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
     // Client validation
     if (!cleanId || !cleanPass) {
-      setErrorMessage(`Please provide both your ${selectedRole} ID/email and password.`);
+      setErrorMessage(t('login.missingFields'));
       triggerShake();
       return;
     }
@@ -157,6 +160,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-x-hidden bg-gradient-to-b from-[#EBE5FC] via-[#F3EDFF] to-[#E5DEFF] p-4 py-8 sm:py-12 select-none">
+      {/* Top Floating Language Selector Bar */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-40">
+        <LanguageSelector />
+      </div>
+
       {/* 3D Soft Background Ambient Scene */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Soft Background Clay Cloud Backdrop */}
@@ -213,11 +221,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
       {/* Main Centered 3D Card Stage */}
       <div className="relative z-10 w-full max-w-[440px] flex flex-col items-center">
-        {/*
-          STUDENT CHARACTER ILLUSTRATION
-          Positioned ABOVE and partially OVERLAPPING the upper edge of the login card.
-          The character features a relaxed leaning/resting pose leaning onto the top ledge.
-        */}
+        {/* STUDENT CHARACTER ILLUSTRATION */}
         <motion.div
           initial={{ opacity: 0, y: -20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -234,7 +238,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 className="w-full h-auto object-contain rounded-t-3xl transform transition-transform duration-300 hover:scale-[1.02]"
               />
             ) : (
-              /* High-fidelity CSS/SVG Clay Character Fallback container */
               <div className="w-full h-44 rounded-t-3xl bg-gradient-to-b from-indigo-200 via-purple-100 to-white/90 flex flex-col items-center justify-center p-4 border-2 border-white/80 shadow-[inset_0_3px_6px_rgba(255,255,255,0.9)]">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-purple-400 to-indigo-500 shadow-md flex items-center justify-center text-white mb-2">
                   <User className="w-8 h-8" />
@@ -246,10 +249,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </div>
         </motion.div>
 
-        {/*
-          3D CLAY LOGIN CARD
-          Round corners, multi-layered soft shadows, clay borders & inner specular reflection
-        */}
+        {/* 3D CLAY LOGIN CARD */}
         <motion.div
           initial={{ opacity: 0, y: 30, scale: 0.96 }}
           animate={
@@ -272,14 +272,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             </div>
 
             <h2 className="text-base sm:text-lg font-bold text-slate-700 tracking-tight">
-              Welcome Back
+              {t('login.welcomeBack')}
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5 mb-5">
-              Sign in to your smart student workspace
+              {t('login.loginSubtitle')}
             </p>
           </div>
 
-          {/* Role Switcher Tabs (Clay Segmented Pill) */}
+          {/* Role Switcher Tabs */}
           <div className="grid grid-cols-3 p-1.5 bg-[#EDE9FE]/80 rounded-2xl mb-5 shadow-[inset_0_2px_4px_rgba(109,40,217,0.06)] border border-purple-100">
             {(['Student', 'Teacher', 'Admin'] as UserRole[]).map((role) => {
               const isActive = selectedRole === role;
@@ -302,7 +302,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     />
                   )}
-                  {role}
+                  {translateRole(role)}
                 </button>
               );
             })}
@@ -333,7 +333,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 htmlFor="login-identifier"
                 className="block text-xs font-bold text-slate-700"
               >
-                {selectedRole} ID or Institutional Email
+                {translateRole(selectedRole)} {t('login.identifierLabel')}
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-600 transition-colors">
@@ -348,7 +348,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     setIdentifier(e.target.value);
                     if (errorMessage) setErrorMessage(null);
                   }}
-                  placeholder="e.g. CP-847291 or alex.j@university.edu"
+                  placeholder={t('login.identifierPlaceholder')}
                   autoComplete="username"
                   className="w-full pl-10 pr-3.5 py-3 bg-[#F8F6FF] border border-purple-200/70 rounded-2xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-3 focus:ring-indigo-500/20 focus:border-indigo-600 focus:bg-white transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] font-medium"
                   required
@@ -363,7 +363,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   htmlFor="login-password"
                   className="block text-xs font-bold text-slate-700"
                 >
-                  Password
+                  {t('login.passwordLabel')}
                 </label>
               </div>
               <div className="relative group">
@@ -407,7 +407,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded text-indigo-600 border-purple-300 focus:ring-indigo-500 transition-colors cursor-pointer"
                 />
-                <span className="text-xs text-slate-600 font-semibold">Remember me</span>
+                <span className="text-xs text-slate-600 font-semibold">{t('login.rememberMe')}</span>
               </label>
 
               <button
@@ -416,7 +416,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 onClick={() => setShowForgotModal(true)}
                 className="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline transition-colors cursor-pointer"
               >
-                Forgot password?
+                {t('login.forgotPassword')}
               </button>
             </div>
 
@@ -437,15 +437,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Verifying Credentials...</span>
+                    <span>{t('login.signingIn')}</span>
                   </>
                 ) : isSuccess ? (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>Welcome back, {welcomeName}!</span>
+                    <span>{t('login.loginSuccess')}</span>
                   </>
                 ) : (
-                  <span>LOGIN</span>
+                  <span>{t('login.signInButton')}</span>
                 )}
               </motion.button>
             </div>
@@ -458,7 +458,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
               <div>
-                <span className="font-bold text-indigo-950">{selectedRole} Demo:</span>{' '}
+                <span className="font-bold text-indigo-950">{translateRole(selectedRole)} Demo:</span>{' '}
                 <span className="font-mono text-[11px] text-indigo-700">
                   {selectedRole === 'Student'
                     ? 'CP-847291 / password123'
@@ -474,21 +474,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               onClick={() => handleDemoFill()}
               className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-white px-2.5 py-1 rounded-lg border border-purple-200/80 shadow-2xs hover:bg-purple-50 transition-colors cursor-pointer"
             >
-              Fill
+              {t('common.select', 'Fill')}
             </button>
           </div>
 
           {/* Footer Support Link */}
           <div className="mt-5 pt-3.5 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-500 font-medium">
-              Need assistance?{' '}
+              {t('login.needHelp')}{' '}
               <button
                 type="button"
                 id="login-btn-contact-support"
                 onClick={() => setShowHelpModal(true)}
                 className="text-indigo-600 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
-                Campus IT Support
+                {t('login.contactSupport')}
               </button>
             </p>
           </div>
@@ -508,17 +508,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
                 <KeyRound className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Reset Student Password</h3>
+              <h3 className="text-base font-bold text-slate-900">{t('login.forgotModalTitle')}</h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Enter your institutional student email to receive a secure recovery link.
+                {t('login.forgotModalDesc')}
               </p>
 
               {forgotSent ? (
                 <div className="mt-4 p-3 bg-emerald-50 text-emerald-800 text-xs rounded-2xl border border-emerald-200 flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    Reset instructions sent to <strong>{forgotEmail || 'alex.j@university.edu'}</strong>.
-                  </span>
+                  <span>{t('login.resetSentSuccess')}</span>
                 </div>
               ) : (
                 <div className="mt-4 space-y-3">
@@ -526,7 +524,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     type="email"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="alex.j@university.edu"
+                    placeholder={t('login.emailPlaceholder')}
                     className="w-full px-3.5 py-2.5 text-xs border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                   />
                   <button
@@ -534,7 +532,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     onClick={() => setForgotSent(true)}
                     className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
                   >
-                    Send Recovery Link
+                    {t('login.sendResetLink')}
                   </button>
                 </div>
               )}
@@ -547,7 +545,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 }}
                 className="mt-4 w-full py-1.5 text-xs text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
               >
-                Close
+                {t('common.close')}
               </button>
             </motion.div>
           </div>
@@ -567,22 +565,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-1">
                 <HelpCircle className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Campus IT Helpdesk</h3>
+              <h3 className="text-base font-bold text-slate-900">{t('login.helpModalTitle')}</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                For login questions, forgotten passwords, or authentication assistance:
+                {t('login.helpModalDesc')}
               </p>
               <div className="bg-slate-50 p-3.5 rounded-2xl text-xs space-y-1.5 text-slate-700 font-medium border border-slate-100">
-                <p>📍 Location: Tech Wing, Room 102</p>
-                <p>📞 Phone: +1 (555) 019-HELP</p>
-                <p>✉️ Email: it-support@campuspulse.edu</p>
-                <p>⏰ Hours: Mon-Fri, 8:00 AM – 6:00 PM</p>
+                <p>📍 {t('login.helpdeskHours')}</p>
+                <p>📞 {t('login.helpdeskPhone')}</p>
+                <p>✉️ {t('login.helpdeskEmail')}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowHelpModal(false)}
                 className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
-                Got It
+                {t('common.close')}
               </button>
             </motion.div>
           </div>

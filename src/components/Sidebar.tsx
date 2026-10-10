@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { ScreenId, UserProfile } from '../types';
 import { CampusPulseLogo } from './CampusPulseLogo';
+import { useTranslation } from '../context/LanguageContext';
 
 interface SidebarProps {
   currentScreen: ScreenId;
@@ -37,70 +38,72 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
   user,
 }) => {
+  const { t, translateRole } = useTranslation();
+
   const navItems = [
     {
       id: 'dashboard' as ScreenId,
       label:
         user?.role === 'Admin'
-          ? 'Admin Dashboard'
+          ? t('nav.adminDashboard')
           : user?.role === 'Teacher'
-          ? 'Teacher Dashboard'
-          : 'Dashboard',
+          ? t('nav.teacherDashboard')
+          : t('nav.dashboard'),
       icon: LayoutDashboard,
     },
     {
       id: 'attendance' as ScreenId,
-      label: 'Attendance',
+      label: t('nav.attendance'),
       icon: UserCheck,
     },
     {
       id: 'exams' as ScreenId,
-      label: 'Exams',
+      label: t('nav.exams'),
       icon: GraduationCap,
     },
     {
       id: 'timetable' as ScreenId,
-      label: 'Timetable',
+      label: t('nav.timetable'),
       icon: CalendarDays,
     },
     {
       id: 'assignments' as ScreenId,
-      label: 'Assignments',
+      label: t('nav.assignments'),
       icon: FileText,
     },
     {
       id: 'operations' as ScreenId,
-      label: user?.role === 'Admin' ? 'Campus Operations' : 'Campus Requests',
+      label: user?.role === 'Admin' ? t('nav.operations') : t('nav.campusRequests'),
       icon: Building2,
     },
     {
       id: 'fees' as ScreenId,
-      label: user?.role === 'Admin' ? 'Fees & Dues Management' : 'Fees & Dues',
+      label: user?.role === 'Admin' ? t('nav.feesManagement') : t('nav.fees'),
       icon: CreditCard,
     },
     {
       id: 'papers' as ScreenId,
-      label: 'Previous Year Papers',
+      label: t('nav.papers'),
       icon: BookMarked,
     },
     {
       id: 'library' as ScreenId,
-      label: user?.role === 'Admin' ? 'Library & Circulation Desk' : 'Library & Book Issue',
+      label: user?.role === 'Admin' ? t('nav.libraryCirculation') : t('nav.library'),
       icon: Library,
     },
     {
       id: 'lost-found' as ScreenId,
-      label: user?.role === 'Admin' ? 'Lost & Found Desk' : 'Lost & Found',
+      label: user?.role === 'Admin' ? t('nav.lostFoundDesk') : t('nav.lostFound'),
       icon: PackageSearch,
     },
     {
       id: 'events' as ScreenId,
-      label: user?.role === 'Admin' ? 'Event Applications' : 'Event Conduction',
+      label: user?.role === 'Admin' ? t('nav.eventApprovals') : t('nav.events'),
       icon: CalendarRange,
     },
     {
       id: 'notifications' as ScreenId,
-      label: 'Notifications',
+      label: t('nav.notifications'),
       icon: Bell,
       badge: unreadCount > 0 ? unreadCount : undefined,
     },
@@ -108,15 +111,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'profile' as ScreenId,
       label:
         user?.role === 'Admin'
-          ? 'Admin Profile'
+          ? t('nav.adminProfile')
           : user?.role === 'Teacher'
-          ? 'Faculty Profile'
-          : 'Profile',
+          ? t('nav.facultyProfile')
+          : t('nav.profile'),
       icon: User,
     },
     {
       id: 'ai-chat' as ScreenId,
-      label: 'AI Assistant',
+      label: t('nav.aiChat'),
       icon: Sparkles,
       highlight: true,
     },
@@ -131,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onNavigate('dashboard')}
             className="cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
           >
-            <CampusPulseLogo size="md" subtitle="University Portal" white={true} />
+            <CampusPulseLogo size="md" subtitle={t('header.universityPortal')} white={true} />
           </div>
         </div>
 
@@ -215,10 +218,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/30'
                     : 'bg-blue-500/25 text-blue-300 border border-blue-500/30'
                 }`}>
-                  {user?.role || 'Student'}
+                  {translateRole(user?.role || 'Student')}
                 </span>
                 <span className="text-[10px] text-slate-400 truncate">
-                  {user?.role === 'Teacher' ? 'Faculty' : user?.role === 'Admin' ? 'Admin' : '5th Sem'}
+                  {user?.role === 'Teacher' ? translateRole('Teacher') : user?.role === 'Admin' ? translateRole('Admin') : '5th Sem'}
                 </span>
               </div>
             </div>
@@ -231,8 +234,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 if (onOpenSettings) onOpenSettings();
                 else onNavigate('profile');
               }}
-              title="Settings"
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+              title={t('nav.settings')}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -240,8 +243,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               id="sidebar-btn-logout"
               onClick={onLogout}
-              title="Logout"
-              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+              title={t('nav.logout')}
+              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>

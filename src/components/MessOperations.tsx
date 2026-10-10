@@ -38,6 +38,7 @@ import {
   CreateMessFeedbackPayload,
 } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 interface MessOperationsProps {
   user: UserProfile;
@@ -67,6 +68,7 @@ const FEEDBACK_CATEGORIES: Array<{ key: FeedbackCategory; label: string }> = [
 ];
 
 export const MessOperations: React.FC<MessOperationsProps> = ({ user, isStaffOrAdmin }) => {
+  const { t, translateStatus } = useTranslation();
   // Determine current day of week to set as initial day
   const todayDayName = useMemo(() => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -316,15 +318,15 @@ export const MessOperations: React.FC<MessOperationsProps> = ({ user, isStaffOrA
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 text-xs font-semibold tracking-wide uppercase border border-orange-400/30 mb-2.5">
               <UtensilsCrossed className="w-3.5 h-3.5" />
-              Campus Dining & Hostel Mess
+              {t('mess.title', 'Campus Dining & Hostel Mess')}
             </div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-              {isStaffOrAdmin ? 'Mess Menu & Student Feedback Management' : 'Hostel Mess Menu & Dining Feedback'}
+              {isStaffOrAdmin ? t('mess.title', 'Mess Menu & Student Feedback Management') : t('mess.title', 'Hostel Mess Menu & Dining Feedback')}
             </h2>
             <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed">
               {isStaffOrAdmin
-                ? 'Update daily meal schedules across Breakfast, Lunch, Snacks, and Dinner. Track student ratings, review hygiene concerns, and analyze repeated complaints.'
-                : 'Check weekly meal schedules, timings, and dietary details. Rate your meals and submit feedback directly to the hostel mess committee.'}
+                ? t('mess.subtitle', 'Update daily meal schedules across Breakfast, Lunch, Snacks, and Dinner. Track student ratings, review hygiene concerns, and analyze repeated complaints.')
+                : t('mess.subtitle', 'Check weekly meal schedules, timings, and dietary details. Rate your meals and submit feedback directly to the hostel mess committee.')}
             </p>
           </div>
 
@@ -333,10 +335,10 @@ export const MessOperations: React.FC<MessOperationsProps> = ({ user, isStaffOrA
               onClick={() => loadMessData(false)}
               disabled={isRefreshing}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer"
-              title="Refresh mess data"
+              title={t('common.refresh', 'Refresh mess data')}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Sync
+              {t('common.refresh', 'Sync')}
             </button>
 
             {isStaffOrAdmin && (
@@ -362,7 +364,7 @@ export const MessOperations: React.FC<MessOperationsProps> = ({ user, isStaffOrA
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            Weekly Menu Schedule
+            {t('mess.todaysMenu', 'Weekly Menu Schedule')}
           </button>
 
           {!isStaffOrAdmin && (
@@ -375,7 +377,7 @@ export const MessOperations: React.FC<MessOperationsProps> = ({ user, isStaffOrA
               }`}
             >
               <Star className="w-3.5 h-3.5" />
-              Rate / Submit Feedback
+              {t('mess.messFeedback', 'Rate / Submit Feedback')}
             </button>
           )}
 

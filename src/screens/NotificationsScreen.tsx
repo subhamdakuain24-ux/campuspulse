@@ -20,6 +20,7 @@ import { initialNotifications } from '../data/mockData';
 import { NotificationItem, ScreenId, UserProfile } from '../types';
 import { api } from '../services/api';
 import { AdminTargetedNotifications } from '../components/AdminTargetedNotifications';
+import { useTranslation } from '../context/LanguageContext';
 
 interface NotificationsScreenProps {
   user?: UserProfile;
@@ -27,6 +28,7 @@ interface NotificationsScreenProps {
 }
 
 export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ user, onNavigate }) => {
+  const { t, translateStatus } = useTranslation();
   const isAdmin = user?.role === 'Admin';
   const isTeacher = user?.role === 'Teacher';
   const isStaffOrAdmin = isAdmin || isTeacher;
@@ -98,12 +100,12 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ user, 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Notifications
+            {t('notifications.title', 'Notifications')}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
             {unreadCount > 0
-              ? `You have ${unreadCount} unread messages.`
-              : 'All caught up! No unread messages.'}
+              ? `${unreadCount} ${t('notifications.unreadTab', 'unread messages')}.`
+              : t('notifications.noNotifications', 'All caught up! No unread messages.')}
           </p>
         </div>
 
@@ -119,7 +121,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ user, 
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Notifications Feed
+                {t('notifications.allTab', 'Notifications Feed')}
               </button>
               <button
                 type="button"
@@ -131,7 +133,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ user, 
                 }`}
               >
                 <Send className="w-3.5 h-3.5" />
-                Targeted Dispatch
+                {t('notifications.targetedAdmin', 'Targeted Dispatch')}
               </button>
             </div>
           )}
@@ -142,7 +144,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ user, 
               className="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-blue-600 text-xs font-bold rounded-xl shadow-2xs transition-colors"
             >
               <CheckCheck className="w-4 h-4 text-blue-600" />
-              <span>Mark all as read</span>
+              <span>{t('notifications.markAllRead', 'Mark all as read')}</span>
             </button>
           )}
         </div>

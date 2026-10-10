@@ -12,8 +12,10 @@ import {
 import { attendanceSubjects } from '../data/mockData';
 import { AttendanceSubject } from '../types';
 import { api, AttendanceScreenData } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 export const AttendanceScreen: React.FC = () => {
+  const { t, translateStatus } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [attendanceData, setAttendanceData] = useState<AttendanceScreenData>({
@@ -128,7 +130,7 @@ export const AttendanceScreen: React.FC = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Attendance Overview
+              {t('attendance.title', 'Attendance Overview')}
             </h1>
             {attendanceData.isLiveApi && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
@@ -138,7 +140,7 @@ export const AttendanceScreen: React.FC = () => {
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Fall Semester 2023 <span className="text-slate-300">•</span> School of Computing & Data Sciences
+            {t('attendance.subtitle', 'Fall Semester 2023 • School of Computing & Data Sciences')}
           </p>
         </div>
 
@@ -153,12 +155,12 @@ export const AttendanceScreen: React.FC = () => {
           {overallPercentage >= 75 ? (
             <>
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Keep it up! You&apos;re above the {attendanceData.threshold}% threshold.</span>
+              <span>{t('attendance.statusSafe', `Keep it up! You're above the ${attendanceData.threshold}% threshold.`)}</span>
             </>
           ) : (
             <>
               <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-              <span>Attendance below mandatory {attendanceData.threshold}% threshold!</span>
+              <span>{t('attendance.statusShortage', `Attendance below mandatory ${attendanceData.threshold}% threshold!`)}</span>
             </>
           )}
         </div>
@@ -173,7 +175,7 @@ export const AttendanceScreen: React.FC = () => {
           className="lg:col-span-5 bg-white rounded-2xl p-6 sm:p-7 border border-slate-100/90 shadow-xs flex flex-col justify-between"
         >
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-base font-bold text-slate-900">Overall Attendance</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('attendance.overallTitle', 'Overall Attendance')}</h2>
             <button
               onClick={() => setShowSimulator(!showSimulator)}
               className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 cursor-pointer"
@@ -221,7 +223,9 @@ export const AttendanceScreen: React.FC = () => {
                     overallPercentage >= 75 ? 'text-emerald-600' : 'text-red-500'
                   }`}
                 >
-                  {overallPercentage >= 75 ? `Above Min. (${attendanceData.threshold}%)` : `Below Min. (${attendanceData.threshold}%)`}
+                  {overallPercentage >= 75
+                    ? `${t('attendance.statusSafe', 'Above Min.')} (${attendanceData.threshold}%)`
+                    : `${t('attendance.statusShortage', 'Below Min.')} (${attendanceData.threshold}%)`}
                 </span>
               </div>
             </div>
@@ -231,7 +235,7 @@ export const AttendanceScreen: React.FC = () => {
           <div className="grid grid-cols-3 divide-x divide-slate-100 pt-4 border-t border-slate-100 text-center">
             <div>
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block">
-                PRESENT
+                {t('attendance.attendedClasses', 'PRESENT')}
               </span>
               <span className="text-lg sm:text-xl font-extrabold text-emerald-600 font-mono">
                 {totalAttended}
@@ -247,7 +251,7 @@ export const AttendanceScreen: React.FC = () => {
             </div>
             <div>
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block">
-                TOTAL
+                {t('common.total', 'TOTAL')}
               </span>
               <span className="text-lg sm:text-xl font-extrabold text-slate-800 font-mono">
                 {totalClasses}
@@ -451,8 +455,8 @@ export const AttendanceScreen: React.FC = () => {
       {/* Subject Breakdown Section (Page 4 Bottom Grid) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Subject Breakdown</h2>
-          <span className="text-xs text-slate-500 font-medium">{subjects.length} Enrolled Courses</span>
+          <h2 className="text-lg font-bold text-slate-900">{t('attendance.subjectBreakdown', 'Subject Breakdown')}</h2>
+          <span className="text-xs text-slate-500 font-medium">{subjects.length} {t('common.items', 'Enrolled Courses')}</span>
         </div>
 
         {/* Grid of Subject Cards */}
@@ -513,7 +517,7 @@ export const AttendanceScreen: React.FC = () => {
                 {/* Footer: Classes count & status pill */}
                 <div className="flex items-center justify-between pt-2 border-t border-slate-50 text-xs">
                   <span className="font-semibold text-slate-600">
-                    {subj.attended}/{subj.total} Classes
+                    {subj.attended}/{subj.total} {t('attendance.attendedClasses', 'Classes')}
                   </span>
 
                   <span
@@ -526,7 +530,7 @@ export const AttendanceScreen: React.FC = () => {
                     }`}
                   >
                     {isShortage && <AlertTriangle className="w-3 h-3 text-red-600" />}
-                    {subj.badgeText}
+                    {translateStatus(subj.badgeText)}
                   </span>
                 </div>
               </motion.div>
@@ -540,7 +544,7 @@ export const AttendanceScreen: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-blue-600" />
-                <h3 className="text-sm font-bold text-slate-900">Recent Attendance Logs</h3>
+                <h3 className="text-sm font-bold text-slate-900">{t('attendance.recentLogs', 'Recent Attendance Logs')}</h3>
               </div>
               <span className="text-xs text-slate-400">Past 5 sessions</span>
             </div>
@@ -562,7 +566,7 @@ export const AttendanceScreen: React.FC = () => {
                           : 'bg-red-50 text-red-700 border border-red-100'
                       }`}
                     >
-                      {log.status}
+                      {translateStatus(log.status)}
                     </span>
                   </div>
                 </div>

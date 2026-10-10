@@ -19,8 +19,10 @@ import {
 import { initialAssignments } from '../data/mockData';
 import { AssignmentItem } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 export const AssignmentsScreen: React.FC = () => {
+  const { t, translateStatus } = useTranslation();
   const [assignments, setAssignments] = useState<AssignmentItem[]>(initialAssignments);
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
   const [selectedSubject, setSelectedSubject] = useState('All Subjects');
@@ -133,10 +135,10 @@ export const AssignmentsScreen: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Assignments
+            {t('assignments.title', 'Assignments')}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Manage your coursework and track deadlines.
+            {t('assignments.subtitle', 'Manage your coursework and track deadlines.')}
           </p>
         </div>
 
@@ -148,7 +150,7 @@ export const AssignmentsScreen: React.FC = () => {
               onChange={(e) => setSelectedSubject(e.target.value)}
               className="text-xs font-semibold text-slate-700 bg-white border border-slate-200/80 rounded-xl px-3.5 py-2 pr-8 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
-              <option value="All Subjects">All Subjects</option>
+              <option value="All Subjects">{t('common.all', 'All Subjects')}</option>
               {Array.from(new Set(assignments.map((a) => a.courseCode))).map((code) => {
                 const asg = assignments.find((a) => a.courseCode === code);
                 return (
@@ -172,7 +174,7 @@ export const AssignmentsScreen: React.FC = () => {
               : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/60'
           }`}
         >
-          <span>Pending</span>
+          <span>{t('assignments.pendingTab', 'Pending')}</span>
           <span
             className={`text-[11px] px-1.5 py-0.2 rounded-full ${
               activeTab === 'pending' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'
@@ -190,7 +192,7 @@ export const AssignmentsScreen: React.FC = () => {
               : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/60'
           }`}
         >
-          <span>Completed</span>
+          <span>{t('assignments.submittedTab', 'Completed')}</span>
           <span
             className={`text-[11px] px-1.5 py-0.2 rounded-full ${
               activeTab === 'completed' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'

@@ -14,10 +14,13 @@ import {
   QrCode,
   FileText,
   RotateCw,
+  Globe,
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { CampusPulseLogo } from '../components/CampusPulseLogo';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
+import { LanguageSelector } from '../components/LanguageSelector';
 
 interface ProfileScreenProps {
   user: UserProfile;
@@ -25,6 +28,7 @@ interface ProfileScreenProps {
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser }) => {
+  const { t, translateRole, currentLanguageOption } = useTranslation();
   const [activeTab, setActiveTab] = useState<'Account' | 'Privacy' | 'Notifications'>('Account');
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone);
@@ -88,10 +92,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            My Profile
+            {t('profile.title')}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Manage your academic identity and account preferences.
+            {t('profile.subtitle')}
           </p>
         </div>
       </div>
@@ -104,7 +108,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
           className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-semibold flex items-center gap-2 shadow-xs"
         >
           <Check className="w-4 h-4 text-emerald-600" />
-          <span>Profile changes and security preferences updated successfully!</span>
+          <span>{t('common.saved')}</span>
         </motion.div>
       )}
 
@@ -127,13 +131,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
             {/* Name & ID */}
             <h2 className="text-lg sm:text-xl font-bold text-slate-900">{user.name}</h2>
             <p className="text-xs font-mono font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
-              STUDENT ID: {user.studentId}
+              {t('profile.studentId')}: {user.studentId}
             </p>
 
             {/* Program Badge */}
             <div className="mt-4 p-2.5 bg-blue-50/70 border border-blue-100 rounded-xl w-full">
               <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
-                PROGRAM
+                {t('profile.currentProgram')}
               </span>
               <span className="text-xs font-bold text-slate-800 block mt-0.5">{user.program}</span>
             </div>
@@ -142,17 +146,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
           {/* Documents Card (Page 9 Left Bottom) */}
           <div className="bg-white rounded-2xl p-6 border border-slate-100/90 shadow-xs space-y-3.5">
             <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block">
-              DOCUMENTS
+              {t('common.details')}
             </span>
 
             {/* Download ID Card Button */}
             <button
               onClick={() => setShowIdCardModal(true)}
-              className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-between"
+              className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-between cursor-pointer"
             >
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-blue-200" />
-                <span>Download ID Card</span>
+                <span>{t('profile.viewDigitalId')}</span>
               </div>
               <Download className="w-3.5 h-3.5" />
             </button>
@@ -160,11 +164,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
             {/* View Transcript Button */}
             <button
               onClick={() => setShowTranscriptModal(true)}
-              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-between"
+              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer"
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-slate-400" />
-                <span>View Transcript</span>
+                <span>{t('profile.downloadTranscript')}</span>
               </div>
               <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
             </button>
@@ -178,7 +182,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
             {/* SEMESTER */}
             <div className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-xs">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block">
-                📈 SEMESTER
+                📈 {t('common.semester')}
               </span>
               <span className="text-xl sm:text-2xl font-extrabold text-slate-900 block mt-1">
                 {user.semester}
@@ -189,7 +193,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
             {/* CUM. GPA */}
             <div className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-xs">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block">
-                🎓 CUM. GPA
+                🎓 {t('dashboard.cgpa')}
               </span>
               <span className="text-xl sm:text-2xl font-extrabold text-slate-900 block mt-1 font-mono">
                 {user.gpa}
@@ -202,26 +206,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
             {/* CREDITS */}
             <div className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-xs">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block">
-                📑 CREDITS
+                📑 {t('dashboard.creditsEarned')}
               </span>
               <span className="text-xl sm:text-2xl font-extrabold text-slate-900 block mt-1 font-mono">
                 {user.creditsEarned}
               </span>
               <span className="text-[11px] font-medium text-slate-400 mt-0.5 block">
-                out of {user.creditsTotal}
+                {t('common.of')} {user.creditsTotal}
               </span>
             </div>
 
             {/* ENROLLED */}
             <div className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-xs">
               <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block">
-                📅 ENROLLED
+                📅 {t('profile.enrollmentYear')}
               </span>
               <span className="text-xl sm:text-2xl font-extrabold text-slate-900 block mt-1 font-mono">
                 {user.enrolledYear}
               </span>
               <span className="text-[11px] font-medium text-slate-400 mt-0.5 block">
-                Class of {user.graduationYear}
+                {user.graduationYear}
               </span>
             </div>
           </div>
@@ -234,13 +238,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`pb-1 relative transition-colors ${
+                  className={`pb-1 relative transition-colors cursor-pointer ${
                     activeTab === tab
                       ? 'text-blue-600 font-extrabold'
                       : 'text-slate-400 hover:text-slate-700'
                   }`}
                 >
-                  {tab}
+                  {tab === 'Account'
+                    ? t('profile.accountTab')
+                    : tab === 'Privacy'
+                    ? t('profile.privacyTab')
+                    : t('profile.notificationsTab')}
                   {activeTab === tab && (
                     <motion.div
                       layoutId="activeProfileTab"
@@ -254,13 +262,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
             {/* Personal Details Form (Page 9 Form) */}
             <form onSubmit={handleSaveChanges} className="space-y-6">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 mb-3">Personal Details</h3>
+                <h3 className="text-sm font-bold text-slate-900 mb-3">{t('profile.personalDetails')}</h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Email */}
                   <div>
                     <label className="text-xs font-semibold text-slate-600 block mb-1">
-                      Email Address
+                      {t('profile.emailAddress')}
                     </label>
                     <input
                       type="email"
@@ -273,7 +281,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
                   {/* Phone Number */}
                   <div>
                     <label className="text-xs font-semibold text-slate-600 block mb-1">
-                      Phone Number
+                      {t('profile.phoneNumber')}
                     </label>
                     <input
                       type="text"
@@ -286,7 +294,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
                   {/* Campus Address */}
                   <div className="sm:col-span-2">
                     <label className="text-xs font-semibold text-slate-600 block mb-1">
-                      Campus Address
+                      {t('profile.campusAddress')}
                     </label>
                     <input
                       type="text"
@@ -301,30 +309,50 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     {isSaving && <RotateCw className="w-3.5 h-3.5 animate-spin" />}
-                    {isSaving ? 'Saving...' : 'Save Changes'}
+                    {isSaving ? t('common.saving') : t('common.saveChanges')}
                   </button>
                 </div>
               </div>
 
-              {/* System Preferences Toggles (Page 9 Bottom) */}
+              {/* System Preferences Toggles */}
               <div className="pt-6 border-t border-slate-100 space-y-4">
-                <h3 className="text-sm font-bold text-slate-900">System Preferences</h3>
+                <h3 className="text-sm font-bold text-slate-900">{t('profile.systemPreferences')}</h3>
+
+                {/* Interface Language Preference */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-blue-50/50 border border-blue-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">{t('profile.languagePreference')}</h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {t('profile.languagePreferenceDesc')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1.5 rounded-full bg-white border border-blue-200 text-blue-700 font-bold text-xs shadow-2xs">
+                      {currentLanguageOption.nativeLabel} ({currentLanguageOption.code.toUpperCase()})
+                    </span>
+                  </div>
+                </div>
 
                 {/* Academic Alerts */}
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50/70 border border-slate-100">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-900">Academic Alerts</h4>
+                    <h4 className="text-xs font-bold text-slate-900">{t('profile.academicAlerts')}</h4>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Receive notifications for grade postings and assignments.
+                      {t('profile.academicAlertsDesc')}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setAcademicAlerts(!academicAlerts)}
-                    className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 focus:outline-none ${
+                    className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
                       academicAlerts ? 'bg-blue-600' : 'bg-slate-300'
                     }`}
                   >
@@ -339,15 +367,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
                 {/* Profile Visibility */}
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50/70 border border-slate-100">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-900">Profile Visibility</h4>
+                    <h4 className="text-xs font-bold text-slate-900">{t('profile.profileVisibility')}</h4>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Allow other students to find your profile in campus search.
+                      {t('profile.profileVisibilityDesc')}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setProfileVisibility(!profileVisibility)}
-                    className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 focus:outline-none ${
+                    className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
                       profileVisibility ? 'bg-blue-600' : 'bg-slate-300'
                     }`}
                   >
@@ -362,15 +390,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onUpdateUser
                 {/* Two-Factor Authentication */}
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50/70 border border-slate-100">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-900">Two-Factor Authentication</h4>
+                    <h4 className="text-xs font-bold text-slate-900">{t('profile.twoFactorAuth')}</h4>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Require a verification code when logging in from new devices.
+                      {t('profile.twoFactorAuthDesc')}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setTwoFactorAuth(!twoFactorAuth)}
-                    className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 focus:outline-none ${
+                    className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
                       twoFactorAuth ? 'bg-blue-600' : 'bg-slate-300'
                     }`}
                   >

@@ -18,8 +18,10 @@ import {
 import { initialChatMessages } from '../data/mockData';
 import { ChatMessage } from '../types';
 import { CampusPulseLogo } from '../components/CampusPulseLogo';
+import { useTranslation } from '../context/LanguageContext';
 
 export const AIAssistantScreen: React.FC = () => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>(initialChatMessages);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);

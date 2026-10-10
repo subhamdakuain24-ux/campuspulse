@@ -35,6 +35,7 @@ import {
   UpdateFeePayload,
 } from '../types';
 import { api } from '../services/api';
+import { useTranslation } from '../context/LanguageContext';
 
 interface FeesOperationsProps {
   user?: UserProfile;
@@ -52,6 +53,7 @@ const CATEGORIES: Array<{ key: FeeCategory; label: string; icon: React.ElementTy
 ];
 
 export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrAdmin }) => {
+  const { t, translateStatus } = useTranslation();
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [summary, setSummary] = useState<StudentFeesSummary | AdminFeesSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -323,15 +325,15 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
           <div>
             <div className="flex items-center gap-2.5 text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
               <CreditCard className="w-4 h-4" />
-              <span>{isStaffOrAdmin ? 'Campus Financial Administration' : 'Student Accounts & Dues'}</span>
+              <span>{isStaffOrAdmin ? t('fees.title', 'Campus Financial Administration') : t('fees.title', 'Student Accounts & Dues')}</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              {isStaffOrAdmin ? 'Fees & Dues Management' : 'My Fees & Dues Overview'}
+              {isStaffOrAdmin ? t('fees.title', 'Fees & Dues Management') : t('fees.title', 'My Fees & Dues Overview')}
             </h2>
             <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed">
               {isStaffOrAdmin
-                ? 'Review institutional fee assessments, verify student payments, adjust due dates, and track overdue receivables.'
-                : 'View semester tuition, hostel charges, mess meal plans, library deposits, and outstanding balances with real-time payment status.'}
+                ? t('fees.subtitle', 'Review institutional fee assessments, verify student payments, adjust due dates, and track overdue receivables.')
+                : t('fees.subtitle', 'View semester tuition, hostel charges, mess meal plans, library deposits, and outstanding balances with real-time payment status.')}
             </p>
           </div>
 
@@ -342,7 +344,7 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              {t('common.refresh', 'Refresh')}
             </button>
 
             {isStaffOrAdmin && (
@@ -354,7 +356,7 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
                 className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                Add Fee Record
+                {t('fees.adminAddFee', 'Add Fee Record')}
               </button>
             )}
           </div>
@@ -367,7 +369,7 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
           {/* Card 1: Total Assessed */}
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-1">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-              {isStaffOrAdmin ? 'Total Assessed' : 'Total Fees'}
+              {t('fees.summaryTotal', isStaffOrAdmin ? 'Total Assessed' : 'Total Fees')}
             </span>
             <div className="flex items-baseline justify-between">
               <span className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
@@ -385,7 +387,7 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
           {/* Card 2: Amount Paid / Collected */}
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-1">
             <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block">
-              {isStaffOrAdmin ? 'Total Collected' : 'Amount Paid'}
+              {t('fees.summaryPaid', isStaffOrAdmin ? 'Total Collected' : 'Amount Paid')}
             </span>
             <div className="flex items-baseline justify-between">
               <span className="text-xl sm:text-2xl font-extrabold text-emerald-700 tracking-tight">
@@ -403,7 +405,7 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
           {/* Card 3: Outstanding / Pending */}
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-1">
             <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block">
-              Outstanding Dues
+              {t('fees.summaryPending', 'Outstanding Dues')}
             </span>
             <div className="flex items-baseline justify-between">
               <span className="text-xl sm:text-2xl font-extrabold text-amber-700 tracking-tight">
@@ -421,7 +423,7 @@ export const FeesOperations: React.FC<FeesOperationsProps> = ({ user, isStaffOrA
           {/* Card 4: Overdue */}
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-1">
             <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider block">
-              Overdue Amount
+              {t('fees.summaryPending', 'Overdue Amount')}
             </span>
             <div className="flex items-baseline justify-between">
               <span className="text-xl sm:text-2xl font-extrabold text-rose-700 tracking-tight">
